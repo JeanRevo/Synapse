@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep:*)",
+      "Bash(./venv/bin/pip list:*)",
+      "Bash(./venv/bin/python3:*)",
+      "Bash(./venv/bin/pip uninstall:*)",
+      "Bash(./venv/bin/pip install:*)",
+      "Bash(chmod:*)",
+      "Bash(curl:*)",
+      "Bash(python3:*)",
+      "Bash(source:*)",
+      "Bash(if git status)",
+      "Bash(then echo \"⚠️ DANGER: .env est tracké!\")",
+      "Bash(else echo \"✅ .env n''est pas tracké\")",
+      "Bash(fi)",
+      "Bash(if [ -d .git ])",
+      "Bash(then echo \"✅ Git déjà initialisé\")",
+      "Bash(else echo \"⚠️ Git non initialisé - initialisation...\")",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}

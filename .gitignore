@@ -1,0 +1,82 @@
+# Environnement virtuel Python
+venv/
+env/
+ENV/
+.venv/
+
+# Fichiers Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Variables d'environnement
+.env
+.env.local
+*.env.local
+
+# Fichiers de cache ML
+*.pkl
+*.joblib
+*.model
+*.pth
+*.pt
+
+# Bases de données vectorielles
+faiss_index/
+chroma_db/
+*.faiss
+*.index
+
+# Fichiers temporaires
+*.tmp
+*.temp
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Documentation générée
+site/
+htmlcov/
+.coverage
+.pytest_cache/
+
+# Distribution
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Fichiers de backup
+*.bak
+*.backup
+archives/
+
+# PDF téléchargés (trop volumineux)
+pdfs/
+downloaded_pdfs/
+
+# Modèles ML (trop volumineux pour Git)
+models/
+checkpoints/
+*.bin
+
+# Logs
+logs/
+*.log
+
+# Données de test
+test_data/
+test_pdfs/

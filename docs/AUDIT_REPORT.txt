@@ -1,0 +1,6 @@
+RAPPORT D'AUDIT
+============================================================
+
+Bugs critiques: 0
+
+Avertissements: 0
