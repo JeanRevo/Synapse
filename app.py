@@ -1,15 +1,16 @@
 """
-HAL RAG Chatbot - Application Streamlit avec fonctionnalités ML
+Synapse - Assistant Scientifique IA
 
-Un chatbot spécialisé pour la recherche scientifique utilisant les archives ouvertes HAL Science.
+Application d'analyse et de discussion avec les thèses scientifiques via les archives HAL Science.
 """
 
 import streamlit as st
 import pandas as pd
-from typing import Optional
+from typing import Optional, List, Dict, Any
 import sys
 from pathlib import Path
 import base64
+from datetime import datetime
 
 # Ajouter src au chemin
 sys.path.insert(0, str(Path(__file__).parent))
@@ -19,6 +20,13 @@ from src.rag_engine import RAGEngine
 from src.utils import truncate_text, clean_query, validate_pdf_url
 from src.config import config
 from src.translations import get_translations, t
+from src.pdf_annotator import PDFAnnotator
+
+# Importer streamlit-pdf-viewer
+try:
+    from streamlit_pdf_viewer import pdf_viewer
+except ImportError:
+    pdf_viewer = None  # Fallback si non installé
 
 # Fonctionnalités ML
 if config.ENABLE_CLASSIFICATION:
@@ -30,8 +38,8 @@ if config.ENABLE_RECOMMENDATIONS:
 
 # Configuration de la page
 st.set_page_config(
-    page_title="HAL Science RAG Chatbot",
-    page_icon="🔬",
+    page_title="Synapse - Assistant Scientifique",
+    page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -100,6 +108,18 @@ def init_session_state():
         st.session_state.pdf_bytes = None
     if "show_pdf" not in st.session_state:
         st.session_state.show_pdf = True
+    if "current_page" not in st.session_state:
+        st.session_state.current_page = 1
+    if "current_annotations" not in st.session_state:
+        st.session_state.current_annotations = []
+    if "last_sources" not in st.session_state:
+        st.session_state.last_sources = []
+    if "last_answer" not in st.session_state:
+        st.session_state.last_answer = None
+    if "conversation_history" not in st.session_state:
+        st.session_state.conversation_history = []  # Liste des conversations passées
+    if "active_conversation_id" not in st.session_state:
+        st.session_state.active_conversation_id = None
 
     # Fonctionnalités ML initialization
     if config.ENABLE_CLASSIFICATION and "ml_classifier" not in st.session_state:
@@ -134,49 +154,101 @@ def render_header():
 
 
 def render_sidebar():
-    """Afficher la barre latérale avec configuration et statut."""
+    """Afficher la barre latérale Synapse."""
     translations = get_translations()
 
     with st.sidebar:
-        # Sélecteur de langue
-        st.header(translations.get("sidebar_language"))
-        available_languages = translations.get_available_languages()
-        language_options = list(available_languages.keys())
-        current_index = language_options.index(st.session_state.language)
-
-        selected_language = st.selectbox(
-            label="Select language",
-            options=language_options,
-            format_func=lambda x: available_languages[x],
-            index=current_index,
-            label_visibility="collapsed",
+        # Branding Synapse
+        st.markdown(
+            """
+            <div style="text-align: center; padding: 1rem 0 0.5rem 0;">
+                <div style="font-size: 2rem; font-weight: bold; color: #1f77b4;">
+                    🧠 Synapse
+                </div>
+                <div style="font-size: 0.9rem; color: #888; margin-top: 0.2rem;">
+                    {tagline}
+                </div>
+            </div>
+            """.format(tagline=translations.get("sidebar_brand_tagline")),
+            unsafe_allow_html=True,
         )
 
-        if selected_language != st.session_state.language:
-            st.session_state.language = selected_language
-            translations.set_language(selected_language)
-            st.rerun()
-
-        st.divider()
-        st.header(translations.get("sidebar_config"))
-
-        # Statut de l'API
-        st.subheader(translations.get("sidebar_api_status"))
-        if config.OPENAI_API_KEY:
-            st.success(translations.get("sidebar_openai_configured"))
-        else:
-            st.warning(translations.get("sidebar_openai_missing"))
-            st.info(translations.get("sidebar_openai_info"))
-
-        # État actuel
-        st.subheader(translations.get("sidebar_current_state"))
-        state_emoji = "🔍" if st.session_state.app_state == "search" else "💬"
-        state_name = translations.get("sidebar_discovery_phase") if st.session_state.app_state == "search" else translations.get("sidebar_chat_phase")
-        st.info(f"{state_emoji} {state_name}")
-
-        # Statut du document
+        # Indicateur de statut
         if st.session_state.document_loaded:
-            st.success(f"{translations.get('sidebar_doc_loaded')} {st.session_state.selected_doc.title[:50]}...")
+            st.markdown(
+                f"""
+                <div style="
+                    background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+                    border-radius: 8px; padding: 0.7rem; margin: 0.5rem 0;
+                    border-left: 4px solid #4caf50;
+                ">
+                    <div style="font-size: 0.8rem; color: #2e7d32; font-weight: 600;">
+                        💬 {translations.get("sidebar_status_analyzing")}
+                    </div>
+                    <div style="font-size: 0.75rem; color: #555; margin-top: 0.3rem;">
+                        {st.session_state.selected_doc.title[:60]}...
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                f"""
+                <div style="
+                    background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+                    border-radius: 8px; padding: 0.7rem; margin: 0.5rem 0;
+                    border-left: 4px solid #1976d2;
+                ">
+                    <div style="font-size: 0.8rem; color: #1565c0; font-weight: 600;">
+                        🔍 {translations.get("sidebar_status_ready")}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        # Historique des conversations
+        if st.session_state.conversation_history:
+            st.divider()
+            st.markdown(
+                f"<div style='font-size: 0.85rem; font-weight: 600; color: #555; margin-bottom: 0.3rem;'>"
+                f"💬 {translations.get('sidebar_history_title')}</div>",
+                unsafe_allow_html=True,
+            )
+
+            for i, conv in enumerate(st.session_state.conversation_history):
+                is_active = (
+                    st.session_state.document_loaded
+                    and st.session_state.selected_doc
+                    and st.session_state.selected_doc.doc_id == conv["doc_id"]
+                )
+                title_short = conv["title"][:45] + "..." if len(conv["title"]) > 45 else conv["title"]
+                msg_count = conv.get("message_count", 0)
+                time_str = conv.get("timestamp", "")
+
+                if is_active:
+                    st.markdown(
+                        f"""<div style="
+                            background: #e3f2fd; border-radius: 6px; padding: 0.4rem 0.6rem;
+                            margin: 0.2rem 0; border-left: 3px solid #1976d2;
+                            font-size: 0.78rem;
+                        ">
+                            <div style="font-weight: 600; color: #1565c0;">📄 {title_short}</div>
+                            <div style="color: #888; font-size: 0.7rem;">{msg_count} messages · {time_str}</div>
+                        </div>""",
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    if st.button(
+                        f"📄 {title_short}",
+                        key=f"conv_hist_{i}",
+                        use_container_width=True,
+                        help=f"{msg_count} messages · {time_str}",
+                    ):
+                        with st.spinner(translations.get("sidebar_history_loading")):
+                            _restore_conversation(i)
+                            st.rerun()
 
         # Filtres intelligents ML (uniquement en phase de recherche)
         if config.ENABLE_CLASSIFICATION and st.session_state.app_state == "search" and st.session_state.search_results:
@@ -209,12 +281,12 @@ def render_sidebar():
             st.divider()
             st.subheader(translations.get("ml_similar_theses"))
 
-            # Obtenir les recommandations
             if hasattr(st.session_state.selected_doc, 'doc_id'):
                 try:
                     similar = st.session_state.ml_recommender.recommend_by_text(
                         st.session_state.selected_doc.abstract,
-                        top_k=3
+                        top_k=3,
+                        exclude_thesis_id=st.session_state.selected_doc.doc_id
                     )
 
                     if similar:
@@ -227,23 +299,29 @@ def render_sidebar():
                 except:
                     pass
 
-        # Bouton de réinitialisation
+        # Bouton nouvelle recherche
         st.divider()
         if st.button(translations.get("sidebar_new_search"), use_container_width=True):
             reset_application()
             st.rerun()
 
-        # Paramètres
-        st.divider()
-        st.subheader(translations.get("sidebar_settings"))
-        st.caption(f"{translations.get('sidebar_chunk_size')} {config.CHUNK_SIZE}")
-        st.caption(f"{translations.get('sidebar_chunk_overlap')} {config.CHUNK_OVERLAP}")
-        st.caption(f"{translations.get('sidebar_top_k')} {config.TOP_K_RESULTS}")
-
-        # À propos
-        st.divider()
-        st.caption(translations.get("sidebar_about"))
-        st.caption(f"{translations.get('sidebar_data_source')} [HAL Science](https://hal.science)")
+        # Footer
+        st.markdown(
+            f"""
+            <div style="
+                text-align: center; padding: 1rem 0 0.5rem 0;
+                color: #999; font-size: 0.75rem;
+            ">
+                {translations.get("sidebar_powered_by")}
+                <a href="https://hal.science" target="_blank" style="color: #1976d2; text-decoration: none;">
+                    HAL Science
+                </a>
+                <br/>
+                <span style="font-size: 0.7rem;">Synapse {translations.get("sidebar_version")}</span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 def classify_and_filter_results():
@@ -309,7 +387,7 @@ def render_search_phase():
                         st.session_state.ml_recommender.index_thesis(
                             doc.doc_id,
                             doc.abstract,
-                            {"title": doc.title, "author": doc.author}
+                            {"title": doc.title, "author": doc.author, "domains": doc.domain}
                         )
 
                 if results["numFound"] == 0:
@@ -378,9 +456,96 @@ def render_search_phase():
                         st.warning(translations.get("doc_pdf_unavailable"))
 
 
+def _save_current_conversation():
+    """Sauvegarder la conversation en cours dans l'historique (si elle existe)."""
+    if not st.session_state.document_loaded or not st.session_state.selected_doc:
+        return
+    if not st.session_state.chat_messages:
+        return  # Pas de messages, rien à sauvegarder
+
+    doc = st.session_state.selected_doc
+    conv_id = f"{doc.doc_id}_{datetime.now().strftime('%H%M%S')}"
+
+    # Vérifier si on met à jour une conversation existante ou on en crée une nouvelle
+    existing_idx = None
+    for i, conv in enumerate(st.session_state.conversation_history):
+        if conv.get("doc_id") == doc.doc_id:
+            existing_idx = i
+            break
+
+    conv_data = {
+        "id": conv_id,
+        "doc_id": doc.doc_id,
+        "title": doc.title,
+        "author": doc.author,
+        "pdf_url": doc.pdf_url,
+        "url": doc.url,
+        "abstract": doc.abstract,
+        "messages": list(st.session_state.chat_messages),
+        "message_count": len([m for m in st.session_state.chat_messages if m["role"] == "user"]),
+        "timestamp": datetime.now().strftime("%H:%M"),
+    }
+
+    if existing_idx is not None:
+        st.session_state.conversation_history[existing_idx] = conv_data
+    else:
+        st.session_state.conversation_history.insert(0, conv_data)
+
+    # Garder max 15 conversations
+    st.session_state.conversation_history = st.session_state.conversation_history[:15]
+
+
+def _restore_conversation(conv_index: int):
+    """Restaurer une conversation depuis l'historique."""
+    conv = st.session_state.conversation_history[conv_index]
+
+    # Sauvegarder la conversation actuelle d'abord
+    _save_current_conversation()
+
+    # Re-télécharger le PDF et re-ingérer le document
+    try:
+        pdf_bytes = st.session_state.hal_client.download_pdf(conv["pdf_url"], conv["doc_id"])
+
+        if st.session_state.rag_engine is None:
+            st.session_state.rag_engine = RAGEngine()
+
+        # Recréer un objet HALDocument minimal
+        restored_doc = HALDocument(
+            doc_id=conv["doc_id"],
+            title=conv["title"],
+            author=conv["author"],
+            abstract=conv["abstract"],
+            pdf_url=conv["pdf_url"],
+            url=conv["url"],
+            publication_date=None,
+            keywords=[],
+            domain=None,
+        )
+
+        doc_metadata = {"title": conv["title"], "author": conv["author"], "doc_id": conv["doc_id"]}
+        st.session_state.rag_engine.ingest_document(pdf_bytes, conv["doc_id"], doc_metadata)
+
+        # Restaurer l'état
+        st.session_state.selected_doc = restored_doc
+        st.session_state.document_loaded = True
+        st.session_state.app_state = "chat"
+        st.session_state.chat_messages = conv["messages"]
+        st.session_state.pdf_bytes = pdf_bytes
+        st.session_state.last_sources = []
+        st.session_state.last_answer = None
+        st.session_state.active_conversation_id = conv["doc_id"]
+
+    except Exception:
+        pass  # Silently fail - the PDF might no longer be available
+
+
 def load_document_for_chat(doc: HALDocument):
     """Charger un document pour le chat RAG."""
     translations = get_translations()
+
+    # Sauvegarder la conversation en cours avant d'en ouvrir une nouvelle
+    _save_current_conversation()
+
     try:
         with st.spinner(translations.get("loading_title")):
             st.info(translations.get("loading_downloading"))
@@ -400,6 +565,7 @@ def load_document_for_chat(doc: HALDocument):
             st.session_state.app_state = "chat"
             st.session_state.chat_messages = []
             st.session_state.pdf_bytes = pdf_bytes
+            st.session_state.active_conversation_id = doc.doc_id
 
             st.success(
                 translations.get("loading_success", chunks=ingestion_stats['total_chunks'], chars=ingestion_stats['total_characters'])
@@ -410,11 +576,53 @@ def load_document_for_chat(doc: HALDocument):
         st.error(translations.get("loading_error", error=str(e)))
 
 
-def display_pdf(pdf_bytes: bytes, height: int = 800):
-    """Afficher le PDF dans un iframe en utilisant l'encodage base64."""
-    base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
-    pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="{height}" type="application/pdf"></iframe>'
+def display_pdf(pdf_bytes: bytes, height: int = 800, sources: List[Dict[str, Any]] = None, answer_text: str = None):
+    """Afficher le PDF avec surlignage des sources et des termes de la réponse."""
+
+    # Décider quel PDF afficher
+    pdf_to_display = pdf_bytes
+    is_highlighted = False
+
+    # Si des sources sont disponibles, générer le PDF avec surlignages
+    if sources and len(sources) > 0:
+        try:
+            with st.spinner("🎨 Génération du surlignage..."):
+                pdf_to_display = PDFAnnotator.generate_highlighted_pdf(
+                    pdf_bytes, sources, max_sources=8, answer_text=answer_text
+                )
+                is_highlighted = True
+        except Exception as e:
+            st.warning(f"⚠️ Impossible de générer les surlignages: {e}")
+            pdf_to_display = pdf_bytes
+
+    # Afficher le PDF dans l'iframe
+    base64_pdf = base64.b64encode(pdf_to_display).decode('utf-8')
+    pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="{height}" style="border: none;"></iframe>'
     st.markdown(pdf_display, unsafe_allow_html=True)
+
+    # Afficher les informations
+    if is_highlighted:
+        st.success(f"✅ PDF avec surlignages • {len(sources)} source(s)")
+
+        # Liste des pages avec sources
+        pages_with_sources = sorted(set(s.get("page_num", 1) for s in sources))
+        colors_html = ""
+        for i, page in enumerate(pages_with_sources):
+            color = PDFAnnotator.COLORS[i % len(PDFAnnotator.COLORS)]
+            colors_html += f'<span style="background-color: {color}; padding: 2px 8px; margin: 2px; border-radius: 3px; display: inline-block;">📄 Page {page}</span>'
+
+        st.markdown(f"**Sources surlignées sur les pages:** {colors_html}", unsafe_allow_html=True)
+
+        # Bouton de téléchargement du PDF annoté
+        st.download_button(
+            label="📥 Télécharger PDF avec surlignages",
+            data=pdf_to_display,
+            file_name="document_annotated.pdf",
+            mime="application/pdf",
+            help="Télécharger le PDF avec les sources surlignées"
+        )
+    else:
+        st.caption("📄 PDF affiché (pas de sources à surligner)")
 
 
 def render_chat_phase():
@@ -458,15 +666,28 @@ def render_chat_phase():
                     if message["role"] == "assistant" and "sources" in message:
                         with st.expander(translations.get("chat_sources_header"), expanded=False):
                             for i, source in enumerate(message["sources"]):
-                                st.markdown(
-                                    f"""
-                                    <div class="source-box">
-                                    <strong>{translations.get("chat_source_chunk", num=i+1, chunk=source['chunk_index'])}</strong><br>
-                                    {source['content']}
-                                    </div>
-                                    """,
-                                    unsafe_allow_html=True,
-                                )
+                                # Badge de navigation coloré
+                                page_num = source.get("page_num", 1)
+                                color = PDFAnnotator.COLORS[i % len(PDFAnnotator.COLORS)]
+
+                                col_src1, col_src2 = st.columns([5, 1])
+                                with col_src1:
+                                    st.markdown(
+                                        f"""
+                                        <div class="source-box">
+                                        <strong>{translations.get("chat_source_chunk", num=i+1, chunk=source['chunk_index'])}</strong>
+                                        <span style="background-color: {color}; padding: 2px 6px; border-radius: 3px; font-size: 0.8em; margin-left: 8px;">📄 Page {page_num}</span><br>
+                                        {source['content']}
+                                        </div>
+                                        """,
+                                        unsafe_allow_html=True,
+                                    )
+                                with col_src2:
+                                    if st.button(f"📍 P.{page_num}", key=f"nav_hist_{message.get('msg_id', 0)}_{i}", help="Aller à cette page"):
+                                        st.session_state.current_page = page_num
+                                        st.session_state.last_sources = message["sources"]
+                                        st.session_state.last_answer = message.get("content")
+                                        st.rerun()
 
         if prompt := st.chat_input(translations.get("chat_input_placeholder")):
             st.session_state.chat_messages.append({"role": "user", "content": prompt})
@@ -484,20 +705,37 @@ def render_chat_phase():
 
                             st.write(answer)
 
-                            with st.expander(translations.get("chat_sources_header"), expanded=False):
+                            with st.expander(translations.get("chat_sources_header"), expanded=True):
                                 for i, source in enumerate(sources):
-                                    st.markdown(
-                                        f"""
-                                        <div class="source-box">
-                                        <strong>{translations.get("chat_source_chunk", num=i+1, chunk=source['chunk_index'])}</strong><br>
-                                        {source['content']}
-                                        </div>
-                                        """,
-                                        unsafe_allow_html=True,
-                                    )
+                                    # Badge de navigation coloré
+                                    page_num = source.get("page_num", 1)
+                                    color = PDFAnnotator.COLORS[i % len(PDFAnnotator.COLORS)]
 
+                                    col_src1, col_src2 = st.columns([5, 1])
+                                    with col_src1:
+                                        st.markdown(
+                                            f"""
+                                            <div class="source-box">
+                                            <strong>{translations.get("chat_source_chunk", num=i+1, chunk=source['chunk_index'])}</strong>
+                                            <span style="background-color: {color}; padding: 2px 6px; border-radius: 3px; font-size: 0.8em; margin-left: 8px;">📄 Page {page_num}</span><br>
+                                            {source['content']}
+                                            </div>
+                                            """,
+                                            unsafe_allow_html=True,
+                                        )
+                                    with col_src2:
+                                        if st.button(f"📍 P.{page_num}", key=f"nav_new_{i}", help="Aller à cette page"):
+                                            st.session_state.current_page = page_num
+                                            st.session_state.last_sources = sources
+                                            st.rerun()
+
+                            # Mettre à jour les sources et la réponse pour l'affichage PDF
+                            st.session_state.last_sources = sources
+                            st.session_state.last_answer = answer
+
+                            msg_id = len(st.session_state.chat_messages)
                             st.session_state.chat_messages.append(
-                                {"role": "assistant", "content": answer, "sources": sources}
+                                {"role": "assistant", "content": answer, "sources": sources, "msg_id": msg_id}
                             )
 
                         except Exception as e:
@@ -508,11 +746,19 @@ def render_chat_phase():
     if pdf_col and st.session_state.pdf_bytes:
         with pdf_col:
             st.subheader(translations.get("chat_pdf_viewer"))
-            display_pdf(st.session_state.pdf_bytes, height=750)
+            # Passer les dernières sources et la réponse pour le surlignage
+            display_pdf(
+                st.session_state.pdf_bytes, height=750,
+                sources=st.session_state.last_sources,
+                answer_text=st.session_state.last_answer
+            )
 
 
 def reset_application():
     """Réinitialiser l'application à l'état initial."""
+    # Sauvegarder la conversation en cours avant de reset
+    _save_current_conversation()
+
     if st.session_state.rag_engine:
         st.session_state.rag_engine.reset()
 
@@ -525,7 +771,12 @@ def reset_application():
     st.session_state.show_pdf = True
     st.session_state.selected_domains = []
     st.session_state.selected_methodologies = []
+    st.session_state.active_conversation_id = None
     st.session_state.show_summaries = {}
+    st.session_state.current_page = 1
+    st.session_state.current_annotations = []
+    st.session_state.last_sources = []
+    st.session_state.last_answer = None
 
 
 def main():

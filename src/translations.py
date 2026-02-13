@@ -1,4 +1,4 @@
-"""Support d'internationalisation (i18n) pour HAL RAG Chatbot."""
+"""Support d'internationalisation (i18n) pour Synapse."""
 
 from typing import Dict, Any
 
@@ -14,30 +14,23 @@ class Translations:
     TEXTS = {
         "en": {
             # Header
-            "app_title": "🔬 HAL Science RAG Chatbot",
-            "app_subtitle": "Search scientific theses and chat with documents using AI",
+            "app_title": "🧠 Synapse",
+            "app_subtitle": "Your AI assistant for exploring scientific theses",
 
             # Sidebar
-            "sidebar_config": "⚙️ Configuration",
-            "sidebar_api_status": "API Status",
-            "sidebar_openai_configured": "✅ OpenAI API Key configured",
-            "sidebar_openai_missing": "⚠️ OpenAI API Key not found",
-            "sidebar_openai_info": "Set OPENAI_API_KEY in .env file",
-            "sidebar_current_state": "Current State",
-            "sidebar_discovery_phase": "Discovery Phase",
-            "sidebar_chat_phase": "Chat Phase",
-            "sidebar_doc_loaded": "✅ Document loaded:",
+            "sidebar_brand": "🧠 Synapse",
+            "sidebar_brand_tagline": "AI Scientific Assistant",
+            "sidebar_status_ready": "Ready to explore",
+            "sidebar_status_analyzing": "Analyzing document",
+            "sidebar_doc_loaded": "Document loaded:",
             "sidebar_new_search": "🔄 New Search",
-            "sidebar_settings": "Settings",
-            "sidebar_chunk_size": "Chunk Size:",
-            "sidebar_chunk_overlap": "Chunk Overlap:",
-            "sidebar_top_k": "Top-K Results:",
-            "sidebar_about": "Built with LangChain, FAISS, and Streamlit",
-            "sidebar_data_source": "Data from",
-            "sidebar_language": "🌐 Language",
+            "sidebar_history_title": "Recent conversations",
+            "sidebar_history_loading": "Restoring conversation...",
+            "sidebar_powered_by": "Powered by",
+            "sidebar_version": "v1.0",
 
             # Phase 1: Search
-            "search_header": "🔍 Phase 1: Search HAL Archives",
+            "search_header": "🔍 Explore HAL Archives",
             "search_input_label": "Enter your research topic or keywords:",
             "search_input_placeholder": "e.g., machine learning, climate change, quantum computing...",
             "search_input_help": "Search for theses in the HAL Science database",
@@ -60,7 +53,7 @@ class Translations:
             "doc_pdf_unavailable": "PDF not available",
 
             # Phase 2: Chat
-            "chat_header": "💬 Phase 2: Chat with Document",
+            "chat_header": "💬 Chat with Document",
             "chat_current_doc": "📄 Current Document",
             "chat_doc_title": "**Title:**",
             "chat_doc_author": "**Author:**",
@@ -104,30 +97,23 @@ class Translations:
 
         "fr": {
             # Header
-            "app_title": "🔬 Chatbot RAG Sciences HAL",
-            "app_subtitle": "Recherchez des thèses scientifiques et discutez avec les documents via l'IA",
+            "app_title": "🧠 Synapse",
+            "app_subtitle": "Votre assistant IA pour explorer les thèses scientifiques",
 
             # Sidebar
-            "sidebar_config": "⚙️ Configuration",
-            "sidebar_api_status": "Statut API",
-            "sidebar_openai_configured": "✅ Clé API OpenAI configurée",
-            "sidebar_openai_missing": "⚠️ Clé API OpenAI non trouvée",
-            "sidebar_openai_info": "Définir OPENAI_API_KEY dans le fichier .env",
-            "sidebar_current_state": "État actuel",
-            "sidebar_discovery_phase": "Phase de découverte",
-            "sidebar_chat_phase": "Phase de discussion",
-            "sidebar_doc_loaded": "✅ Document chargé :",
+            "sidebar_brand": "🧠 Synapse",
+            "sidebar_brand_tagline": "Assistant Scientifique IA",
+            "sidebar_status_ready": "Prêt à explorer",
+            "sidebar_status_analyzing": "Analyse du document",
+            "sidebar_doc_loaded": "Document chargé :",
             "sidebar_new_search": "🔄 Nouvelle recherche",
-            "sidebar_settings": "Paramètres",
-            "sidebar_chunk_size": "Taille des chunks :",
-            "sidebar_chunk_overlap": "Chevauchement :",
-            "sidebar_top_k": "Résultats Top-K :",
-            "sidebar_about": "Créé avec LangChain, FAISS et Streamlit",
-            "sidebar_data_source": "Données de",
-            "sidebar_language": "🌐 Langue",
+            "sidebar_history_title": "Conversations récentes",
+            "sidebar_history_loading": "Restauration de la conversation...",
+            "sidebar_powered_by": "Propulsé par",
+            "sidebar_version": "v1.0",
 
             # Phase 1: Search
-            "search_header": "🔍 Phase 1 : Recherche dans les archives HAL",
+            "search_header": "🔍 Explorer les archives HAL",
             "search_input_label": "Entrez votre sujet de recherche ou mots-clés :",
             "search_input_placeholder": "ex : apprentissage automatique, changement climatique, informatique quantique...",
             "search_input_help": "Rechercher des thèses dans la base de données HAL Science",
@@ -150,7 +136,7 @@ class Translations:
             "doc_pdf_unavailable": "PDF non disponible",
 
             # Phase 2: Chat
-            "chat_header": "💬 Phase 2 : Discuter avec le document",
+            "chat_header": "💬 Discuter avec le document",
             "chat_current_doc": "📄 Document actuel",
             "chat_doc_title": "**Titre :**",
             "chat_doc_author": "**Auteur :**",

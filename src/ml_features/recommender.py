@@ -9,11 +9,16 @@ from sentence_transformers import SentenceTransformer
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Modèle multilingue pour le français académique
+DEFAULT_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+# Seuil minimum de similarité pour afficher une recommandation
+MIN_SIMILARITY_THRESHOLD = 0.15
+
 
 class ThesisRecommender:
     """Recommander des thèses similaires basées sur la similarité sémantique."""
 
-    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
+    def __init__(self, model_name: str = DEFAULT_MODEL):
         """
         Initialiser le système de recommandation.
 
@@ -25,10 +30,26 @@ class ThesisRecommender:
             self.model = SentenceTransformer(model_name)
             self.thesis_embeddings = {}
             self.thesis_metadata = {}
+            self.thesis_texts = {}  # Garder les textes pour déduplication
             logger.info("Recommendation model loaded successfully")
         except Exception as e:
             logger.error(f"Failed to load model: {e}")
             raise
+
+    @staticmethod
+    def _build_rich_text(text: str, metadata: Dict[str, Any]) -> str:
+        """Construire un texte enrichi avec titre et domaines pour un meilleur embedding."""
+        parts = []
+        if metadata.get("title"):
+            parts.append(metadata["title"])
+        if metadata.get("domains"):
+            domains = metadata["domains"]
+            if isinstance(domains, list):
+                parts.append(" ".join(domains))
+            else:
+                parts.append(str(domains))
+        parts.append(text)
+        return " . ".join(parts)
 
     def index_thesis(self, thesis_id: str, text: str, metadata: Dict[str, Any]):
         """
@@ -40,12 +61,16 @@ class ThesisRecommender:
             metadata: Métadonnées de la thèse (titre, auteur, etc.)
         """
         try:
+            # Texte enrichi : titre + domaines + abstract
+            rich_text = self._build_rich_text(text, metadata)
+
             # Générer l'embedding
-            embedding = self.model.encode(text, convert_to_numpy=True, show_progress_bar=False)
+            embedding = self.model.encode(rich_text, convert_to_numpy=True, show_progress_bar=False)
 
             # Stocker
             self.thesis_embeddings[thesis_id] = embedding
             self.thesis_metadata[thesis_id] = metadata
+            self.thesis_texts[thesis_id] = text
 
             logger.info(f"Indexed thesis: {thesis_id}")
 
@@ -54,19 +79,31 @@ class ThesisRecommender:
 
     def index_multiple(self, theses: List[Dict[str, Any]]):
         """
-        Indexer plusieurs thèses à la fois.
+        Indexer plusieurs thèses à la fois (batch encoding).
 
         Args:
             theses: Liste de dictionnaires de thèses avec 'id', 'text' et 'metadata'
         """
-        logger.info(f"Indexing {len(theses)} theses...")
+        logger.info(f"Indexing {len(theses)} theses (batch)...")
 
+        # Préparer les textes enrichis pour batch encoding
+        ids = []
+        texts = []
         for thesis in theses:
-            self.index_thesis(
-                thesis['id'],
-                thesis['text'],
-                thesis.get('metadata', {})
-            )
+            tid = thesis['id']
+            text = thesis['text']
+            metadata = thesis.get('metadata', {})
+            rich_text = self._build_rich_text(text, metadata)
+            ids.append(tid)
+            texts.append(rich_text)
+            self.thesis_metadata[tid] = metadata
+            self.thesis_texts[tid] = text
+
+        # Batch encode (beaucoup plus rapide)
+        if texts:
+            embeddings = self.model.encode(texts, convert_to_numpy=True, show_progress_bar=False, batch_size=32)
+            for tid, emb in zip(ids, embeddings):
+                self.thesis_embeddings[tid] = emb
 
         logger.info(f"Indexed {len(self.thesis_embeddings)} theses total")
 
@@ -122,7 +159,9 @@ class ThesisRecommender:
         self,
         query_text: str,
         top_k: int = 5,
-        filters: Optional[Dict[str, List[str]]] = None
+        filters: Optional[Dict[str, List[str]]] = None,
+        exclude_thesis_id: Optional[str] = None,
+        min_similarity: float = MIN_SIMILARITY_THRESHOLD
     ) -> List[Dict[str, Any]]:
         """
         Recommander des thèses basées sur une requête texte.
@@ -131,6 +170,8 @@ class ThesisRecommender:
             query_text: Requête de recherche
             top_k: Nombre de recommandations
             filters: Filtres optionnels
+            exclude_thesis_id: ID de la thèse à exclure (éviter l'auto-recommandation)
+            min_similarity: Seuil minimum de similarité
 
         Returns:
             Liste de thèses recommandées
@@ -146,11 +187,23 @@ class ThesisRecommender:
         similarities = []
 
         for tid, embedding in self.thesis_embeddings.items():
+            # Exclure la thèse elle-même
+            if tid == exclude_thesis_id:
+                continue
+
+            # Détecter auto-référence par texte identique
+            if self.thesis_texts.get(tid) == query_text:
+                continue
+
             # Appliquer les filtres
             if filters and not self._matches_filters(tid, filters):
                 continue
 
             sim = cosine_similarity([query_embedding], [embedding])[0][0]
+
+            # Appliquer le seuil minimum
+            if sim < min_similarity:
+                continue
 
             similarities.append({
                 "thesis_id": tid,
@@ -236,6 +289,7 @@ class ThesisRecommender:
             data = {
                 "embeddings": self.thesis_embeddings,
                 "metadata": self.thesis_metadata,
+                "texts": self.thesis_texts,
             }
             with open(filepath, 'wb') as f:
                 pickle.dump(data, f)
@@ -253,6 +307,7 @@ class ThesisRecommender:
 
             self.thesis_embeddings = data["embeddings"]
             self.thesis_metadata = data["metadata"]
+            self.thesis_texts = data.get("texts", {})
 
             logger.info(f"Loaded index from {filepath}")
             logger.info(f"Loaded {len(self.thesis_embeddings)} theses")

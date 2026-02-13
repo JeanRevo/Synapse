@@ -28,7 +28,21 @@ class Config(BaseModel):
     # Configuration RAG
     CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "1000"))
     CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "200"))
-    TOP_K_RESULTS: int = int(os.getenv("TOP_K_RESULTS", "4"))
+    TOP_K_RESULTS: int = int(os.getenv("TOP_K_RESULTS", "8"))
+
+    # Configuration RAG Avancé (Phase 1)
+    USE_HYBRID_SEARCH: bool = os.getenv("USE_HYBRID_SEARCH", "True").lower() == "true"
+    FAISS_WEIGHT: float = float(os.getenv("FAISS_WEIGHT", "0.6"))  # Poids vectoriel
+    BM25_WEIGHT: float = float(os.getenv("BM25_WEIGHT", "0.4"))  # Poids mots-clés
+    MMR_LAMBDA: float = float(os.getenv("MMR_LAMBDA", "0.7"))  # Balance pertinence/diversité
+    MMR_FETCH_K_MULTIPLIER: int = int(os.getenv("MMR_FETCH_K_MULTIPLIER", "3"))  # fetch_k = k * multiplier
+
+    # Configuration RAG Avancé (Phase 2)
+    USE_HIERARCHICAL_CHUNKING: bool = os.getenv("USE_HIERARCHICAL_CHUNKING", "True").lower() == "true"
+    USE_MULTI_INDEX: bool = os.getenv("USE_MULTI_INDEX", "True").lower() == "true"
+    CHAPTER_CHUNK_SIZE: int = int(os.getenv("CHAPTER_CHUNK_SIZE", "1500"))
+    SECTION_CHUNK_SIZE: int = int(os.getenv("SECTION_CHUNK_SIZE", "1000"))
+    PARAGRAPH_CHUNK_SIZE: int = int(os.getenv("PARAGRAPH_CHUNK_SIZE", "500"))
 
     # Base de données vectorielle
     VECTOR_STORE_TYPE: str = os.getenv("VECTOR_STORE_TYPE", "faiss")  # faiss ou chromadb
