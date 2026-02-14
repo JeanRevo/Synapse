@@ -12,6 +12,7 @@ from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
 from langchain.schema import Document
+from langchain.prompts import PromptTemplate, ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
 from sentence_transformers import SentenceTransformer
 from .config import config
 from .thesis_parser import ThesisParser
@@ -22,6 +23,66 @@ from .context_expander import ContextExpander
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+# ============================================================
+# PROMPT TEMPLATES - Prompts structurés pour le RAG
+# ============================================================
+
+# Template système : définit le rôle et le comportement du chatbot
+SYSTEM_TEMPLATE = """Tu es Synapse, un assistant IA spécialisé dans l'analyse de thèses académiques scientifiques.
+
+Ton rôle :
+- Répondre aux questions en te basant UNIQUEMENT sur le contexte fourni (extraits du PDF de la thèse).
+- Être précis, factuel et citer les éléments du contexte.
+- Si l'information n'est pas dans le contexte, le signaler honnêtement.
+- Répondre dans la même langue que la question (français ou anglais).
+
+Règles :
+- Ne jamais inventer d'informations non présentes dans le contexte.
+- Pour les métadonnées (université, auteur, directeur), chercher dans les premières pages du contexte.
+- Structurer ta réponse de manière claire et lisible."""
+
+# Template QA : prompt principal pour la chaîne de questions-réponses
+QA_PROMPT_TEMPLATE = PromptTemplate(
+    input_variables=["context", "question"],
+    template="""Utilise le contexte suivant pour répondre à la question. Si tu ne trouves pas la réponse dans le contexte, dis-le clairement.
+
+Contexte:
+{context}
+
+Question: {question}
+
+Réponse:"""
+)
+
+# Template pour reformuler une question de suivi en question autonome
+CONDENSE_QUESTION_TEMPLATE = PromptTemplate(
+    input_variables=["chat_history", "question"],
+    template="""Étant donné l'historique de conversation suivant et une question de suivi, reformule la question de suivi en une question autonome qui peut être comprise sans l'historique.
+
+Historique:
+{chat_history}
+
+Question de suivi: {question}
+
+Question autonome:"""
+)
+
+# Template avancé pour le mode Multi-Index (Phase 3)
+ADVANCED_QA_TEMPLATE = PromptTemplate(
+    input_variables=["context", "question", "history_context"],
+    template="""{system}
+
+{{history_context}}
+
+Contexte (extraits de la thèse):
+{{context}}
+
+Question: {{question}}
+
+Réponse:""".replace("{system}", SYSTEM_TEMPLATE).replace("{{", "{").replace("}}", "}")
+)
 
 
 class HuggingFaceEmbeddings:
@@ -409,10 +470,12 @@ class RAGEngine:
 
                 self.conversation_chain = ConversationalRetrievalChain.from_llm(
                     llm=self.llm,
-                    retriever=self.hybrid_retriever,  # Utiliser le retriever hybride
+                    retriever=self.hybrid_retriever,
                     memory=memory,
                     return_source_documents=True,
                     verbose=config.DEBUG,
+                    combine_docs_chain_kwargs={"prompt": QA_PROMPT_TEMPLATE},
+                    condense_question_prompt=CONDENSE_QUESTION_TEMPLATE,
                 )
 
                 logger.info("✅ Hybrid RAG initialized: MMR (60%) + BM25 (40%)")
@@ -573,6 +636,28 @@ class RAGEngine:
             logger.error(f"Error answering question: {e}")
             raise Exception(f"Failed to answer question: {str(e)}")
 
+    # Traductions FR<->EN courantes pour améliorer le matching de sources
+    BILINGUAL_KEYWORDS = {
+        "résultats": "results", "results": "résultats",
+        "méthodologie": "methodology", "methodology": "méthodologie",
+        "méthode": "method", "method": "méthode",
+        "conclusion": "conclusion",
+        "introduction": "introduction",
+        "université": "university", "university": "université",
+        "auteur": "author", "author": "auteur",
+        "directeur": "supervisor", "supervisor": "directeur",
+        "chapitre": "chapter", "chapter": "chapitre",
+        "objectif": "objective", "objective": "objectif",
+        "analyse": "analysis", "analysis": "analyse",
+        "données": "data", "data": "données",
+        "modèle": "model", "model": "modèle",
+        "expérience": "experiment", "experiment": "expérience",
+        "hypothèse": "hypothesis", "hypothesis": "hypothèse",
+        "discussion": "discussion",
+        "résumé": "summary", "summary": "résumé",
+        "bibliographie": "bibliography", "bibliography": "bibliographie",
+    }
+
     def _filter_relevant_sources(
         self,
         answer: str,
@@ -583,8 +668,8 @@ class RAGEngine:
         """
         Filtrer les sources pour ne garder que celles pertinentes à la réponse.
 
-        Règle stricte : une source DOIT contenir au moins un mot-clé de la question.
-        Ensuite, scoring par mots-clés de la réponse pour le classement.
+        Stratégie souple : scoring par mots-clés de la question ET de la réponse,
+        avec traduction bilingue FR/EN pour les thèses mixtes.
 
         Args:
             answer: Réponse générée par le LLM
@@ -605,36 +690,51 @@ class RAGEngine:
             "fait", "été", "sont", "ont", "ces", "d'un", "d'une", "cette",
             "c'est", "n'est", "l'on", "qu'il", "qu'elle", "qu'un", "qu'une",
             "quel", "quelle", "quels", "quelles",
+            "the", "and", "for", "that", "this", "with", "from", "are",
+            "was", "were", "been", "have", "has", "had",
         }
 
-        # Mots-clés de la question (critère obligatoire)
+        # Extraire mots-clés de la question + leurs traductions bilingues
         question_words = set(question.lower().split())
         question_keywords = {w.strip(".,;:!?()\"'") for w in question_words if len(w) > 3} - stop_words
 
-        # Mots-clés de la réponse (critère de scoring)
+        # Enrichir avec traductions FR<->EN
+        enriched_question_kw = set(question_keywords)
+        for kw in question_keywords:
+            if kw in self.BILINGUAL_KEYWORDS:
+                enriched_question_kw.add(self.BILINGUAL_KEYWORDS[kw])
+
+        # Mots-clés de la réponse (pour scoring)
         answer_words = set(answer.lower().split())
         answer_keywords = {w.strip(".,;:!?()\"'") for w in answer_words if len(w) > 3} - stop_words
 
-        if not question_keywords and not answer_keywords:
+        if not enriched_question_kw and not answer_keywords:
             return source_documents[:max_sources]
 
         scored_sources = []
         for doc in source_documents:
             content_lower = doc.page_content.lower()
 
-            # FILTRE STRICT : la source DOIT contenir au moins un mot-clé de la question
-            if question_keywords:
-                has_question_match = any(kw in content_lower for kw in question_keywords)
-                if not has_question_match:
-                    continue  # Éliminer cette source
+            # Score basé sur mots-clés de la question (bilingue)
+            question_score = sum(1 for kw in enriched_question_kw if kw in content_lower)
 
-            # Scoring par mots-clés de la réponse
-            score = sum(1 for kw in answer_keywords if kw in content_lower)
-            scored_sources.append((score, doc))
+            # Score basé sur mots-clés de la réponse
+            answer_score = sum(1 for kw in answer_keywords if kw in content_lower)
+
+            # Score combiné (question pèse 2x plus)
+            total_score = (question_score * 2) + answer_score
+
+            if total_score > 0:
+                scored_sources.append((total_score, doc))
 
         scored_sources.sort(key=lambda x: x[0], reverse=True)
 
         result = [doc for _, doc in scored_sources[:max_sources]]
+
+        # Fallback : si aucune source n'a matché, retourner les premières (le retriever les a trouvées pertinentes)
+        if not result and source_documents:
+            result = source_documents[:max_sources]
+            logger.info(f"🎯 Filtre: aucun match mot-clé, fallback sur {len(result)} sources du retriever")
 
         logger.info(f"🎯 Filtre pertinence: {len(result)}/{len(source_documents)} sources (question_kw: {question_keywords})")
         for i, (s, d) in enumerate(scored_sources[:max_sources]):
@@ -736,24 +836,20 @@ class RAGEngine:
             # 5. Construire le contexte pour le LLM
             context = "\n\n---\n\n".join([doc.page_content for doc in source_documents[:config.TOP_K_RESULTS]])
 
-            # 6. Construire le prompt avec historique
+            # 6. Construire le prompt avec le PromptTemplate
             history_context = ""
             if self.chat_history:
                 recent_history = self.chat_history[-3:]  # 3 dernières QA
-                history_context = "\n\nHistorique récent:\n"
+                history_context = "\nHistorique récent:\n"
                 for q, a in recent_history:
                     history_context += f"Q: {q}\nR: {a}\n\n"
 
-            prompt = f"""Tu es un assistant spécialisé dans l'analyse de thèses académiques.
-Réponds à la question en te basant sur le contexte fourni. Sois précis et complet.
-Si l'information n'est pas explicitement dans le contexte, essaie de déduire la réponse à partir des éléments disponibles (mentions d'université, laboratoire, auteur, etc.).
-{history_context}
-Contexte:
-{context}
-
-Question: {question}
-
-Réponse:"""
+            # Utiliser le PromptTemplate structuré
+            prompt = ADVANCED_QA_TEMPLATE.format(
+                context=context,
+                question=question,
+                history_context=history_context,
+            )
 
             # 7. Générer la réponse avec le LLM
             if not self.llm:

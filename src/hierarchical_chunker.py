@@ -31,9 +31,9 @@ class HierarchicalChunker:
 
     def __init__(
         self,
-        chapter_chunk_size: int = 4000,
-        section_chunk_size: int = 2000,
-        paragraph_chunk_size: int = 1000,
+        chapter_chunk_size: int = 1500,
+        section_chunk_size: int = 1000,
+        paragraph_chunk_size: int = 500,
         chunk_overlap: int = 200,
     ):
         """

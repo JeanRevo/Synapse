@@ -135,23 +135,51 @@ class ThesisParser:
         Returns:
             Niveau (1=chapitre, 2=section, 3=sous-section)
         """
-        # Chapitre
+        text_stripped = text.strip()
+
+        # 1. Mots-clés explicites de chapitre -> niveau 1
         for pattern in ThesisParser.CHAPTER_PATTERNS:
-            if re.match(pattern, text, re.IGNORECASE):
+            if re.match(pattern, text_stripped, re.IGNORECASE):
                 return 1
 
-        # Sous-section
+        # 2. Sous-section numérotée (X.Y.Z) -> niveau 3
         for pattern in ThesisParser.SUBSECTION_PATTERNS:
-            if re.match(pattern, text):
+            if re.match(pattern, text_stripped):
                 return 3
 
-        # Section
+        # 3. Section numérotée (X.Y) -> niveau 2
         for pattern in ThesisParser.SECTION_PATTERNS:
-            if re.match(pattern, text):
+            if re.match(pattern, text_stripped):
                 return 2
 
-        # Par défaut, considérer comme section
-        return 2
+        # 4. Numérotation simple : "1 Introduction" ou "2 Contexte" -> niveau 1
+        if re.match(r'^(\d+)\s+[A-ZÀ-Ú]', text_stripped):
+            return 1
+
+        # 5. Numérotation romaine : "I Introduction" -> niveau 1
+        if re.match(r'^[IVX]+[\s.:]+\s*\w', text_stripped, re.IGNORECASE):
+            return 1
+
+        # 6. Sections communes (Introduction, Conclusion, etc.) -> niveau 1
+        text_lower = text_stripped.lower()
+        chapter_keywords = [
+            "introduction", "conclusion", "bibliographie", "bibliography",
+            "references", "résumé", "abstract", "remerciements",
+            "acknowledgments", "annexe", "appendix", "table des matières",
+            "list of figures", "liste des figures", "glossaire", "glossary",
+            "avant-propos", "préface", "préambule",
+        ]
+        for keyword in chapter_keywords:
+            if text_lower.startswith(keyword) or text_lower == keyword:
+                return 1
+
+        # 7. Titre tout en MAJUSCULES (souvent un chapitre) -> niveau 1
+        words = text_stripped.split()
+        if len(words) >= 2 and all(w.isupper() or not w.isalpha() for w in words):
+            return 1
+
+        # 8. Par défaut -> niveau 3 (paragraphe, le plus fin)
+        return 3
 
     @staticmethod
     def extract_hierarchical_structure(
