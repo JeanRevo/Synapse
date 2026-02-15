@@ -1,5 +1,6 @@
 # Core Framework
-streamlit==1.31.0
+fastapi>=0.109.0
+uvicorn>=0.27.0
 
 # LangChain & RAG
 langchain==0.1.6
@@ -42,5 +43,4 @@ transformers==4.36.2
 scikit-learn==1.4.0
 torch==2.1.2
 
-# PDF Viewer with Annotations
-streamlit-pdf-viewer>=0.0.15
+# (streamlit et streamlit-pdf-viewer ne sont plus necessaires avec FastAPI)

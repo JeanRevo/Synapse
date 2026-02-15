@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synapse — Assistant Scientifique IA</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary: #8b5cf6;
+            --primary-light: #a78bfa;
+            --primary-dark: #7c3aed;
+            --accent: #06b6d4;
+            --accent-light: #22d3ee;
+            --bg-dark: #0a0a0f;
+            --bg-surface: #12121a;
+            --bg-card: rgba(255,255,255,0.03);
+            --bg-card-hover: rgba(255,255,255,0.06);
+            --border: rgba(255,255,255,0.06);
+            --border-active: rgba(139,92,246,0.3);
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ===================== NAVBAR ===================== */
+        nav {
+            position: sticky; top: 0; z-index: 100;
+            padding: 0.8rem 2rem;
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(10,10,15,0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+        }
+        .logo { display: flex; align-items: center; gap: 0.6rem; text-decoration: none; }
+        .logo-dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: var(--primary);
+            box-shadow: 0 0 12px rgba(139,92,246,0.5);
+        }
+        .logo-text {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.3rem; font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-light), var(--accent));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .nav-status {
+            display: flex; align-items: center; gap: 0.5rem;
+            font-size: 0.85rem; color: var(--text-muted);
+        }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .status-dot.active { background: var(--success); box-shadow: 0 0 8px rgba(16,185,129,0.5); }
+        .status-dot.inactive { background: var(--text-dim); }
+        .nav-actions { display: flex; gap: 0.75rem; }
+
+        /* ===================== BUTTONS ===================== */
+        .btn {
+            padding: 0.5rem 1.2rem; border-radius: 8px; border: none;
+            font-family: 'Inter', sans-serif; font-size: 0.85rem; font-weight: 500;
+            cursor: pointer; transition: all 0.2s; display: inline-flex;
+            align-items: center; gap: 0.4rem;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white; box-shadow: 0 2px 12px rgba(139,92,246,0.3);
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(139,92,246,0.4); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-ghost {
+            background: transparent; color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
+        .btn-ghost:hover { border-color: var(--border-active); color: var(--text); }
+        .btn-sm { padding: 0.35rem 0.8rem; font-size: 0.8rem; }
+        .btn-success { background: linear-gradient(135deg, var(--success), #059669); color: white; }
+        .btn-accent { background: rgba(6,182,212,0.15); color: var(--accent-light); border: 1px solid rgba(6,182,212,0.2); }
+
+        /* ===================== LAYOUT ===================== */
+        .app-container { flex: 1; display: flex; max-height: calc(100vh - 56px); }
+
+        /* ===================== SIDEBAR ===================== */
+        .sidebar {
+            width: 280px; min-width: 280px;
+            background: var(--bg-surface);
+            border-right: 1px solid var(--border);
+            display: flex; flex-direction: column;
+            overflow-y: auto;
+        }
+        .sidebar-header {
+            padding: 1rem 1.2rem; border-bottom: 1px solid var(--border);
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.9rem; font-weight: 600;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .sidebar-section {
+            padding: 0.8rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .sidebar-section-title {
+            font-size: 0.75rem; font-weight: 600; color: var(--text-dim);
+            text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.6rem;
+        }
+        .history-item {
+            padding: 0.6rem 0.8rem; border-radius: 8px;
+            cursor: pointer; transition: all 0.2s; margin-bottom: 0.3rem;
+        }
+        .history-item:hover { background: var(--bg-card-hover); }
+        .history-item.active {
+            background: rgba(139,92,246,0.1);
+            border-left: 3px solid var(--primary);
+        }
+        .history-title {
+            font-size: 0.82rem; font-weight: 500;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .history-meta {
+            font-size: 0.7rem; color: var(--text-dim); margin-top: 0.2rem;
+        }
+        .sidebar-empty {
+            padding: 1.5rem; text-align: center;
+            font-size: 0.85rem; color: var(--text-dim);
+        }
+
+        /* Recommendations */
+        .rec-item {
+            padding: 0.5rem 0.7rem; border-radius: 6px;
+            background: var(--bg-card); border: 1px solid var(--border);
+            margin-bottom: 0.4rem; font-size: 0.8rem;
+        }
+        .rec-title { font-weight: 500; line-height: 1.4; }
+        .rec-score { font-size: 0.7rem; color: var(--accent); margin-top: 0.2rem; }
+        .rec-clickable { transition: all 0.2s; }
+        .rec-clickable:hover {
+            border-color: var(--primary);
+            background: rgba(139,92,246,0.08);
+            transform: translateX(3px);
+        }
+        .rec-hint { font-size: 0.68rem; color: var(--primary-light); margin-top: 0.25rem; opacity: 0; transition: opacity 0.2s; }
+        .rec-clickable:hover .rec-hint { opacity: 1; }
+
+        /* ===================== SEARCH PHASE ===================== */
+        .search-phase {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: flex-start;
+            padding: 3rem 2rem; overflow-y: auto;
+        }
+        .search-hero { text-align: center; margin-bottom: 2rem; }
+        .search-hero h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem;
+        }
+        .search-hero p { color: var(--text-muted); font-size: 1rem; }
+        .search-box {
+            width: 100%; max-width: 700px;
+            display: flex; gap: 0.75rem; margin-bottom: 2rem;
+        }
+        .search-input {
+            flex: 1; padding: 0.75rem 1.2rem; border-radius: 12px;
+            background: var(--bg-surface); border: 1px solid var(--border);
+            color: var(--text); font-size: 1rem; font-family: 'Inter', sans-serif;
+            transition: border-color 0.2s;
+        }
+        .search-input:focus { outline: none; border-color: var(--primary); }
+        .search-input::placeholder { color: var(--text-dim); }
+        .results-container { width: 100%; max-width: 900px; }
+        .results-header {
+            font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;
+        }
+
+        /* Doc cards */
+        .doc-card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 1.25rem; margin-bottom: 0.75rem;
+            transition: all 0.2s;
+        }
+        .doc-card:hover { border-color: var(--border-active); background: var(--bg-card-hover); }
+        .doc-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.05rem; font-weight: 600; margin-bottom: 0.4rem;
+        }
+        .doc-meta {
+            display: flex; gap: 1rem; font-size: 0.8rem; color: var(--text-muted);
+            margin-bottom: 0.6rem; flex-wrap: wrap;
+        }
+        .doc-abstract { font-size: 0.88rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 0.8rem; }
+        .doc-badges { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
+        .badge-domain {
+            padding: 0.15rem 0.5rem; border-radius: 20px; font-size: 0.72rem;
+            background: rgba(139,92,246,0.12); color: var(--primary-light);
+            border: 1px solid rgba(139,92,246,0.15);
+        }
+        .badge-method {
+            padding: 0.15rem 0.5rem; border-radius: 20px; font-size: 0.72rem;
+            background: rgba(6,182,212,0.12); color: var(--accent-light);
+            border: 1px solid rgba(6,182,212,0.15);
+        }
+        .keyword-pill {
+            padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.75rem;
+            background: rgba(255,255,255,0.04); color: var(--text-dim);
+            border: 1px solid var(--border);
+        }
+
+        /* ML Filters */
+        .filters-bar {
+            display: none; flex-wrap: wrap; gap: 0.4rem; align-items: center;
+            margin-bottom: 1.2rem; padding: 0.8rem 1rem; border-radius: 10px;
+            background: var(--bg-card); border: 1px solid var(--border);
+        }
+        .filters-bar.visible { display: flex; }
+        .filters-label {
+            font-size: 0.78rem; font-weight: 600; color: var(--text-dim);
+            margin-right: 0.3rem; white-space: nowrap;
+        }
+        .filter-pill {
+            padding: 0.25rem 0.7rem; border-radius: 20px; font-size: 0.75rem;
+            font-weight: 500; cursor: pointer; transition: all 0.2s;
+            border: 1px solid transparent; user-select: none;
+        }
+        .filter-pill.domain {
+            background: rgba(139,92,246,0.08); color: var(--text-dim);
+            border-color: rgba(139,92,246,0.12);
+        }
+        .filter-pill.domain.active {
+            background: rgba(139,92,246,0.25); color: var(--primary-light);
+            border-color: var(--primary); box-shadow: 0 0 8px rgba(139,92,246,0.2);
+        }
+        .filter-pill.method {
+            background: rgba(6,182,212,0.08); color: var(--text-dim);
+            border-color: rgba(6,182,212,0.12);
+        }
+        .filter-pill.method.active {
+            background: rgba(6,182,212,0.25); color: var(--accent-light);
+            border-color: var(--accent); box-shadow: 0 0 8px rgba(6,182,212,0.2);
+        }
+        .filter-pill:hover { transform: translateY(-1px); }
+        .filters-clear {
+            font-size: 0.72rem; color: var(--text-dim); cursor: pointer;
+            margin-left: 0.5rem; text-decoration: underline;
+            background: none; border: none; font-family: inherit;
+        }
+        .filters-clear:hover { color: var(--error); }
+        .filters-count {
+            font-size: 0.75rem; color: var(--accent); margin-left: auto;
+        }
+        .doc-actions { display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center; }
+        .doc-summary {
+            margin-top: 0.6rem; padding: 0.8rem; border-radius: 8px;
+            background: rgba(16,185,129,0.06); border: 1px solid rgba(16,185,129,0.15);
+            font-size: 0.85rem; color: var(--text);
+        }
+        .doc-summary strong { color: var(--success); }
+
+        /* ===================== CHAT PHASE ===================== */
+        .chat-phase { flex: 1; display: none; }
+        .chat-phase.active { display: flex; }
+        .chat-layout { flex: 1; display: flex; max-height: calc(100vh - 56px); }
+
+        .chat-panel {
+            flex: 1; display: flex; flex-direction: column;
+            border-right: 1px solid var(--border);
+        }
+        .chat-doc-bar {
+            padding: 0.75rem 1.5rem;
+            background: var(--bg-surface); border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .chat-doc-info { display: flex; flex-direction: column; gap: 0.15rem; }
+        .chat-doc-title { font-weight: 600; font-size: 0.9rem; }
+        .chat-doc-author { font-size: 0.8rem; color: var(--text-muted); }
+        .chat-doc-actions { display: flex; gap: 0.5rem; }
+
+        .chat-messages {
+            flex: 1; overflow-y: auto; padding: 1.5rem;
+            display: flex; flex-direction: column; gap: 1rem;
+        }
+        .message {
+            max-width: 85%; padding: 0.9rem 1.2rem;
+            border-radius: 16px; font-size: 0.92rem; line-height: 1.65;
+            animation: msgIn 0.3s ease;
+        }
+        @keyframes msgIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .message.user {
+            align-self: flex-end;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white; border-bottom-right-radius: 4px;
+        }
+        .message.assistant {
+            align-self: flex-start;
+            background: var(--bg-surface); border: 1px solid var(--border);
+            border-bottom-left-radius: 4px;
+        }
+        .message.system {
+            align-self: center; text-align: center;
+            background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.15);
+            color: var(--accent-light); font-size: 0.85rem; border-radius: 8px;
+            max-width: 100%;
+        }
+
+        /* Sources */
+        .message-sources { margin-top: 0.8rem; padding-top: 0.6rem; border-top: 1px solid var(--border); }
+        .sources-toggle {
+            font-size: 0.8rem; color: var(--accent); cursor: pointer;
+            display: flex; align-items: center; gap: 0.3rem;
+            background: none; border: none; font-family: inherit;
+        }
+        .sources-toggle:hover { color: var(--accent-light); }
+        .sources-list { margin-top: 0.5rem; display: none; }
+        .sources-list.open { display: block; }
+        .source-item {
+            background: rgba(255,255,255,0.02); border: 1px solid var(--border);
+            border-radius: 8px; padding: 0.6rem 0.8rem; margin-bottom: 0.4rem;
+            font-size: 0.8rem;
+        }
+        .source-page {
+            display: inline-block; padding: 0.1rem 0.5rem; border-radius: 4px;
+            font-size: 0.7rem; font-weight: 600; margin-right: 0.5rem;
+        }
+        .source-text { color: var(--text-muted); line-height: 1.5; }
+
+        .chat-input-bar {
+            padding: 1rem 1.5rem;
+            background: var(--bg-surface); border-top: 1px solid var(--border);
+            display: flex; gap: 0.75rem;
+        }
+        .chat-input {
+            flex: 1; padding: 0.7rem 1rem; border-radius: 12px;
+            background: var(--bg-dark); border: 1px solid var(--border);
+            color: var(--text); font-size: 0.92rem; font-family: 'Inter', sans-serif;
+            resize: none;
+        }
+        .chat-input:focus { outline: none; border-color: var(--primary); }
+
+        /* PDF Panel */
+        .pdf-panel {
+            width: 45%; display: flex; flex-direction: column;
+            background: var(--bg-surface);
+        }
+        .pdf-header {
+            padding: 0.6rem 1rem;
+            border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 0.85rem; font-weight: 600; flex-wrap: wrap; gap: 0.4rem;
+        }
+        .pdf-badges { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+        .pdf-page-badge {
+            padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.7rem;
+            font-weight: 600; display: inline-block;
+        }
+        .pdf-viewer { flex: 1; }
+        .pdf-viewer iframe { width: 100%; height: 100%; border: none; }
+
+        /* ===================== LOADING ===================== */
+        .loading-overlay {
+            position: fixed; inset: 0; z-index: 200;
+            background: rgba(10,10,15,0.85); backdrop-filter: blur(8px);
+            display: none; align-items: center; justify-content: center;
+            flex-direction: column; gap: 1.5rem;
+        }
+        .loading-overlay.active { display: flex; }
+        .neural-loader { width: 60px; height: 60px; position: relative; }
+        .neural-loader .dot {
+            position: absolute; width: 10px; height: 10px;
+            border-radius: 50%; background: var(--primary);
+        }
+        .neural-loader .dot:nth-child(1) { top: 0; left: 25px; animation: neuralPulse 1.4s 0s infinite; }
+        .neural-loader .dot:nth-child(2) { top: 15px; left: 50px; animation: neuralPulse 1.4s 0.2s infinite; }
+        .neural-loader .dot:nth-child(3) { top: 45px; left: 45px; animation: neuralPulse 1.4s 0.4s infinite; }
+        .neural-loader .dot:nth-child(4) { top: 50px; left: 15px; animation: neuralPulse 1.4s 0.6s infinite; }
+        .neural-loader .dot:nth-child(5) { top: 20px; left: 0; animation: neuralPulse 1.4s 0.8s infinite; }
+        @keyframes neuralPulse {
+            0%, 100% { transform: scale(1); opacity: 0.4; background: var(--primary); }
+            50% { transform: scale(1.5); opacity: 1; background: var(--accent); }
+        }
+        .loading-text { font-size: 1rem; color: var(--text-muted); text-align: center; }
+        .loading-text .step { color: var(--accent-light); font-weight: 600; }
+
+        /* ===================== TOAST ===================== */
+        .toast-container {
+            position: fixed; top: 70px; right: 20px; z-index: 300;
+            display: flex; flex-direction: column; gap: 0.5rem;
+        }
+        .toast {
+            padding: 0.7rem 1.2rem; border-radius: 8px;
+            font-size: 0.85rem; animation: toastIn 0.3s ease;
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+        .toast.success { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); color: var(--success); }
+        .toast.error { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: var(--error); }
+        .toast.info { background: rgba(6,182,212,0.1); border: 1px solid rgba(6,182,212,0.2); color: var(--accent-light); }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+
+        /* Welcome */
+        .welcome-message {
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; flex: 1; text-align: center;
+            color: var(--text-muted); gap: 1rem; padding: 2rem;
+        }
+        .welcome-message .icon { font-size: 3rem; opacity: 0.3; }
+        .welcome-message h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.2rem; font-weight: 600; color: var(--text);
+        }
+        .welcome-message p { font-size: 0.9rem; max-width: 400px; }
+        .suggested-questions { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; }
+        .suggested-q {
+            padding: 0.5rem 1rem; border-radius: 8px;
+            background: var(--bg-card); border: 1px solid var(--border);
+            color: var(--text-muted); font-size: 0.85rem; cursor: pointer;
+            transition: all 0.2s; text-align: left;
+        }
+        .suggested-q:hover { border-color: var(--primary); color: var(--text); }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .sidebar { display: none; }
+            .pdf-panel { display: none; }
+            .chat-panel { border-right: none; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav>
+    <a href="/" class="logo">
+        <div class="logo-dot"></div>
+        <span class="logo-text">Synapse</span>
+    </a>
+    <div class="nav-status">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">Pret a rechercher</span>
+    </div>
+    <div class="nav-actions">
+        <button class="btn btn-ghost btn-sm" onclick="resetApp()" id="btnReset" style="display:none;">
+            Nouvelle recherche
+        </button>
+    </div>
+</nav>
+
+<!-- LOADING OVERLAY -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="neural-loader">
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+        <div class="dot"></div><div class="dot"></div>
+    </div>
+    <div class="loading-text" id="loadingText">
+        <span class="step">Chargement...</span><br>Cela peut prendre quelques secondes
+    </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- APP CONTAINER -->
+<div class="app-container">
+
+    <!-- =========== SIDEBAR =========== -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <span>Historique</span>
+            <button class="btn btn-ghost btn-sm" onclick="refreshHistory()">&#8635;</button>
+        </div>
+        <div id="historyList">
+            <div class="sidebar-empty">Aucune conversation</div>
+        </div>
+
+        <!-- Recommendations -->
+        <div class="sidebar-section" id="recsSection" style="display:none;">
+            <div class="sidebar-section-title">Theses similaires</div>
+            <div id="recsList"></div>
+        </div>
+    </div>
+
+    <!-- =========== SEARCH PHASE =========== -->
+    <div class="search-phase" id="searchPhase">
+        <div class="search-hero">
+            <h1>Rechercher une these</h1>
+            <p>Explorez les archives HAL Science et analysez n'importe quelle these avec l'IA</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" class="search-input" id="searchInput"
+                   placeholder="Ex: intelligence artificielle, deep learning, neurosciences..."
+                   autofocus>
+            <button class="btn btn-primary" id="searchBtn" onclick="doSearch()">Rechercher</button>
+        </div>
+
+        <div class="results-container" id="resultsContainer" style="display:none;">
+            <div class="results-header"><span id="resultsCount"></span></div>
+            <div class="filters-bar" id="filtersBar">
+                <span class="filters-label">Filtres :</span>
+                <div id="filtersPills"></div>
+                <span class="filters-count" id="filtersCount"></span>
+                <button class="filters-clear" id="filtersClear" onclick="clearFilters()" style="display:none;">Reinitialiser</button>
+            </div>
+            <div id="resultsList"></div>
+        </div>
+    </div>
+
+    <!-- =========== CHAT PHASE =========== -->
+    <div class="chat-phase" id="chatPhase">
+        <div class="chat-layout">
+            <div class="chat-panel">
+                <div class="chat-doc-bar">
+                    <div class="chat-doc-info">
+                        <span class="chat-doc-title" id="chatDocTitle"></span>
+                        <span class="chat-doc-author" id="chatDocAuthor"></span>
+                    </div>
+                    <div class="chat-doc-actions">
+                        <button class="btn btn-ghost btn-sm" onclick="downloadPdf()">Telecharger PDF</button>
+                        <button class="btn btn-ghost btn-sm" onclick="togglePdf()" id="btnTogglePdf">PDF</button>
+                    </div>
+                </div>
+
+                <div class="chat-messages" id="chatMessages">
+                    <div class="welcome-message" id="welcomeMsg">
+                        <div class="icon">&#129504;</div>
+                        <h3>Posez vos questions sur cette these</h3>
+                        <p>Synapse analyse le contenu et repond avec les sources exactes.</p>
+                        <div class="suggested-questions">
+                            <button class="suggested-q" onclick="askSuggested(this)">Quel est le sujet principal de cette these ?</button>
+                            <button class="suggested-q" onclick="askSuggested(this)">Quelle methodologie a ete utilisee ?</button>
+                            <button class="suggested-q" onclick="askSuggested(this)">Quels sont les principaux resultats ?</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-input-bar">
+                    <textarea class="chat-input" id="chatInput" rows="1"
+                              placeholder="Posez une question sur la these..."
+                              onkeydown="handleChatKey(event)"></textarea>
+                    <button class="btn btn-primary" onclick="sendMessage()" id="sendBtn">Envoyer</button>
+                </div>
+            </div>
+
+            <!-- PDF Panel -->
+            <div class="pdf-panel" id="pdfPanel">
+                <div class="pdf-header">
+                    <span>Visionneuse PDF</span>
+                    <div class="pdf-badges" id="pdfBadges"></div>
+                    <button class="btn btn-ghost btn-sm" onclick="togglePdf()">Fermer</button>
+                </div>
+                <div class="pdf-viewer" id="pdfViewer">
+                    <p style="color: var(--text-dim); padding: 2rem; text-align: center;">Chargement du PDF...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+// ============================================
+// STATE
+// ============================================
+let currentPhase = 'search';
+let searchResults = [];
+let isLoading = false;
+let mlFeatures = {};
+const SOURCE_COLORS = ['#FFFF00','#00FFFF','#90EE90','#FFB6C1','#FFA500','#DDA0DD','#87CEEB','#F0E68C'];
+let activeFilters = { domains: new Set(), methods: new Set() };
+
+// ============================================
+// API
+// ============================================
+async function api(endpoint, method = 'GET', body = null) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(endpoint, opts);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Erreur serveur');
+    return data;
+}
+
+// ============================================
+// SEARCH
+// ============================================
+async function doSearch() {
+    const query = document.getElementById('searchInput').value.trim();
+    if (!query) return;
+    const btn = document.getElementById('searchBtn');
+    btn.disabled = true; btn.textContent = 'Recherche...';
+    try {
+        const data = await api('/api/search', 'POST', { query, num_results: 10 });
+        searchResults = data.docs;
+        activeFilters = { domains: new Set(), methods: new Set() };
+        document.getElementById('resultsContainer').style.display = 'block';
+        document.getElementById('resultsCount').textContent =
+            `${data.num_found} resultats trouves — ${data.docs.length} affiches`;
+        buildFilterBar(data.docs);
+        renderResults(data.docs);
+    } catch (err) { toast('Erreur: ' + err.message, 'error'); }
+    finally { btn.disabled = false; btn.textContent = 'Rechercher'; }
+}
+
+function renderResults(docs) {
+    const container = document.getElementById('resultsList');
+    container.innerHTML = '';
+    docs.forEach((doc) => {
+        // Retrouver l'index original dans searchResults pour les appels API
+        const origIdx = searchResults.indexOf(doc);
+
+        // ML badges
+        let badgesHtml = '';
+        if (doc.classification) {
+            (doc.classification.domains || []).slice(0, 2).forEach(d => {
+                badgesHtml += `<span class="badge-domain">${d}</span>`;
+            });
+            (doc.classification.methodologies || []).slice(0, 2).forEach(m => {
+                badgesHtml += `<span class="badge-method">${m}</span>`;
+            });
+        }
+
+        const keywords = doc.keywords.map(k => `<span class="keyword-pill">${k}</span>`).join('');
+        const pdfBtn = doc.has_pdf
+            ? `<button class="btn btn-success btn-sm" onclick="loadDocument(${origIdx})">Analyser avec Synapse</button>`
+            : `<span style="color: var(--text-dim); font-size: 0.8rem;">PDF indisponible</span>`;
+
+        const summaryBtn = mlFeatures.summarization
+            ? `<button class="btn btn-accent btn-sm" onclick="summarizeDoc(${origIdx})" id="sumBtn${origIdx}">Resume IA</button>`
+            : '';
+
+        container.innerHTML += `
+            <div class="doc-card" id="docCard${origIdx}">
+                ${badgesHtml ? `<div class="doc-badges">${badgesHtml}</div>` : ''}
+                <div class="doc-title">${doc.title}</div>
+                <div class="doc-meta">
+                    <span>${doc.author}</span>
+                    <span>${doc.publication_date || 'Date inconnue'}</span>
+                    ${doc.domain ? `<span>${doc.domain}</span>` : ''}
+                </div>
+                <div class="doc-abstract">${doc.abstract}</div>
+                ${keywords ? `<div class="doc-badges">${keywords}</div>` : ''}
+                <div id="summaryBox${origIdx}"></div>
+                <div class="doc-actions">
+                    <a href="${doc.url}" target="_blank" class="btn btn-ghost btn-sm">Voir sur HAL</a>
+                    ${summaryBtn}
+                    ${pdfBtn}
+                </div>
+            </div>
+        `;
+    });
+}
+
+// ============================================
+// ML FILTERS
+// ============================================
+function buildFilterBar(docs) {
+    const allDomains = new Set();
+    const allMethods = new Set();
+    docs.forEach(doc => {
+        if (!doc.classification) return;
+        (doc.classification.domains || []).forEach(d => allDomains.add(d));
+        (doc.classification.methodologies || []).forEach(m => allMethods.add(m));
+    });
+
+    const bar = document.getElementById('filtersBar');
+    const pills = document.getElementById('filtersPills');
+
+    if (allDomains.size === 0 && allMethods.size === 0) {
+        bar.classList.remove('visible');
+        return;
+    }
+
+    let html = '';
+    [...allDomains].sort().forEach(d => {
+        html += `<span class="filter-pill domain" onclick="toggleFilter('domains','${d.replace(/'/g,"\\'")}',this)">${d}</span>`;
+    });
+    [...allMethods].sort().forEach(m => {
+        html += `<span class="filter-pill method" onclick="toggleFilter('methods','${m.replace(/'/g,"\\'")}',this)">${m}</span>`;
+    });
+    pills.innerHTML = html;
+    bar.classList.add('visible');
+    document.getElementById('filtersClear').style.display = 'none';
+    document.getElementById('filtersCount').textContent = '';
+}
+
+function toggleFilter(type, value, el) {
+    if (activeFilters[type].has(value)) {
+        activeFilters[type].delete(value);
+        el.classList.remove('active');
+    } else {
+        activeFilters[type].add(value);
+        el.classList.add('active');
+    }
+    applyFilters();
+}
+
+function clearFilters() {
+    activeFilters = { domains: new Set(), methods: new Set() };
+    document.querySelectorAll('.filter-pill.active').forEach(p => p.classList.remove('active'));
+    document.getElementById('filtersClear').style.display = 'none';
+    document.getElementById('filtersCount').textContent = '';
+    renderResults(searchResults);
+}
+
+function applyFilters() {
+    const hasFilters = activeFilters.domains.size > 0 || activeFilters.methods.size > 0;
+    document.getElementById('filtersClear').style.display = hasFilters ? '' : 'none';
+
+    if (!hasFilters) {
+        document.getElementById('filtersCount').textContent = '';
+        renderResults(searchResults);
+        return;
+    }
+
+    const filtered = searchResults.filter(doc => {
+        if (!doc.classification) return false;
+        const domainMatch = activeFilters.domains.size === 0 ||
+            (doc.classification.domains || []).some(d => activeFilters.domains.has(d));
+        const methodMatch = activeFilters.methods.size === 0 ||
+            (doc.classification.methodologies || []).some(m => activeFilters.methods.has(m));
+        return domainMatch && methodMatch;
+    });
+
+    document.getElementById('filtersCount').textContent = `${filtered.length}/${searchResults.length} resultats`;
+    renderResults(filtered);
+}
+
+// ============================================
+// ML SUMMARIZE
+// ============================================
+async function summarizeDoc(index) {
+    const btn = document.getElementById(`sumBtn${index}`);
+    if (btn) { btn.disabled = true; btn.textContent = 'Generation...'; }
+    try {
+        const data = await api('/api/summarize', 'POST', { doc_index: index });
+        const box = document.getElementById(`summaryBox${index}`);
+        if (box && data.summary) {
+            box.innerHTML = `<div class="doc-summary"><strong>Resume IA:</strong> ${data.summary.tldr || data.summary.executive || ''}</div>`;
+        }
+    } catch (err) { toast('Resume indisponible', 'error'); }
+    finally { if (btn) { btn.disabled = false; btn.textContent = 'Resume IA'; } }
+}
+
+// ============================================
+// LOAD DOCUMENT
+// ============================================
+async function loadDocument(index) {
+    showLoading('Telechargement et vectorisation du PDF...');
+    try {
+        const data = await api('/api/load', 'POST', { doc_index: index });
+        switchToChat(data);
+        loadPdf();
+        loadRecommendations();
+        refreshHistory();
+        toast(`Document vectorise: ${data.stats.total_chunks} chunks (${data.stats.chunking_method})`, 'success');
+    } catch (err) { toast('Erreur: ' + err.message, 'error'); }
+    finally { hideLoading(); }
+}
+
+function switchToChat(data) {
+    currentPhase = 'chat';
+    document.getElementById('searchPhase').style.display = 'none';
+    document.getElementById('chatPhase').classList.add('active');
+    document.getElementById('btnReset').style.display = '';
+    document.getElementById('chatDocTitle').textContent = data.title;
+    document.getElementById('chatDocAuthor').textContent = data.author || '';
+    document.getElementById('statusDot').className = 'status-dot active';
+    document.getElementById('statusText').textContent = data.title.substring(0, 50) + (data.title.length > 50 ? '...' : '');
+    document.getElementById('pdfBadges').innerHTML = '';
+
+    // Reset or restore messages
+    const msgs = data.messages || [];
+    const container = document.getElementById('chatMessages');
+    container.innerHTML = '';
+
+    if (msgs.length > 0) {
+        msgs.forEach(m => {
+            if (m.role === 'user' || m.role === 'assistant') {
+                addMessage(m.content, m.role, m.sources || null);
+            }
+        });
+    } else {
+        container.innerHTML = `
+            <div class="welcome-message" id="welcomeMsg">
+                <div class="icon">&#129504;</div>
+                <h3>Posez vos questions sur cette these</h3>
+                <p>Synapse analyse le contenu et repond avec les sources exactes.</p>
+                <div class="suggested-questions">
+                    <button class="suggested-q" onclick="askSuggested(this)">Quel est le sujet principal de cette these ?</button>
+                    <button class="suggested-q" onclick="askSuggested(this)">Quelle methodologie a ete utilisee ?</button>
+                    <button class="suggested-q" onclick="askSuggested(this)">Quels sont les principaux resultats ?</button>
+                </div>
+            </div>
+        `;
+    }
+    document.getElementById('chatInput').focus();
+}
+
+// ============================================
+// CHAT
+// ============================================
+function handleChatKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+async function sendMessage() {
+    const input = document.getElementById('chatInput');
+    const question = input.value.trim();
+    if (!question || isLoading) return;
+    const welcome = document.getElementById('welcomeMsg');
+    if (welcome) welcome.remove();
+    addMessage(question, 'user');
+    input.value = '';
+    const thinkingId = addThinking();
+    isLoading = true;
+    document.getElementById('sendBtn').disabled = true;
+    try {
+        const data = await api('/api/ask', 'POST', { question });
+        removeThinking(thinkingId);
+        addMessage(data.answer, 'assistant', data.sources);
+        // Refresh highlighted PDF
+        loadHighlightedPdf();
+    } catch (err) {
+        removeThinking(thinkingId);
+        addMessage('Erreur: ' + err.message, 'system');
+    } finally {
+        isLoading = false;
+        document.getElementById('sendBtn').disabled = false;
+    }
+}
+
+function askSuggested(btn) {
+    document.getElementById('chatInput').value = btn.textContent;
+    sendMessage();
+}
+
+function addMessage(text, role, sources = null) {
+    const container = document.getElementById('chatMessages');
+    const div = document.createElement('div');
+    div.className = `message ${role}`;
+    let html = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+    div.innerHTML = html;
+
+    if (sources && sources.length > 0) {
+        const srcId = 'src_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+        let srcHtml = `
+            <div class="message-sources">
+                <button class="sources-toggle" onclick="document.getElementById('${srcId}').classList.toggle('open')">
+                    ${sources.length} source(s) — cliquer pour voir
+                </button>
+                <div class="sources-list" id="${srcId}">
+        `;
+        sources.forEach((s, idx) => {
+            const color = SOURCE_COLORS[idx % SOURCE_COLORS.length];
+            srcHtml += `
+                <div class="source-item">
+                    <span class="source-page" style="background:${color}; color:#000;">p.${s.page_num}</span>
+                    <span class="source-text">${s.content}</span>
+                </div>
+            `;
+        });
+        srcHtml += '</div></div>';
+        div.innerHTML += srcHtml;
+    }
+
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function addThinking() {
+    const container = document.getElementById('chatMessages');
+    const id = 'thinking_' + Date.now();
+    const div = document.createElement('div');
+    div.className = 'message assistant'; div.id = id;
+    div.innerHTML = '<span style="color: var(--accent); animation: neuralPulse 1.4s infinite;">Synapse reflechit...</span>';
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+    return id;
+}
+
+function removeThinking(id) {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+}
+
+// ============================================
+// PDF — avec surlignage
+// ============================================
+async function loadPdf() {
+    try {
+        const data = await api('/api/pdf');
+        const viewer = document.getElementById('pdfViewer');
+        viewer.innerHTML = `<iframe src="data:application/pdf;base64,${data.pdf_base64}"></iframe>`;
+    } catch (err) { console.error('PDF load error:', err); }
+}
+
+async function loadHighlightedPdf() {
+    try {
+        const data = await api('/api/pdf/highlighted');
+        const viewer = document.getElementById('pdfViewer');
+        viewer.innerHTML = `<iframe src="data:application/pdf;base64,${data.pdf_base64}"></iframe>`;
+
+        // Afficher les badges de pages
+        const badges = document.getElementById('pdfBadges');
+        if (data.highlighted && data.pages_with_sources) {
+            badges.innerHTML = data.pages_with_sources.map((p, i) => {
+                const color = (data.colors && data.colors[i]) || SOURCE_COLORS[i % SOURCE_COLORS.length];
+                return `<span class="pdf-page-badge" style="background:${color}; color:#000;">p.${p}</span>`;
+            }).join('');
+        }
+
+        if (data.highlighted) {
+            toast(`PDF surligne: ${data.sources_count} source(s)`, 'info');
+        }
+    } catch (err) { console.error('Highlighted PDF error:', err); }
+}
+
+function togglePdf() {
+    const panel = document.getElementById('pdfPanel');
+    panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+}
+
+function downloadPdf() {
+    window.open('/api/pdf/download', '_blank');
+}
+
+// ============================================
+// HISTORIQUE
+// ============================================
+async function refreshHistory() {
+    try {
+        const data = await api('/api/history');
+        const list = document.getElementById('historyList');
+
+        if (!data.conversations || data.conversations.length === 0) {
+            list.innerHTML = '<div class="sidebar-empty">Aucune conversation</div>';
+            return;
+        }
+
+        list.innerHTML = data.conversations.map(conv => `
+            <div class="history-item ${conv.is_active ? 'active' : ''}"
+                 onclick="${conv.is_active ? '' : `restoreConversation(${conv.index})`}">
+                <div class="history-title">${conv.title}</div>
+                <div class="history-meta">${conv.message_count} messages · ${conv.timestamp}</div>
+            </div>
+        `).join('');
+    } catch (err) { console.error('History error:', err); }
+}
+
+async function restoreConversation(index) {
+    showLoading('Restauration de la conversation...');
+    try {
+        const data = await api('/api/history/restore', 'POST', { conv_index: index });
+        switchToChat(data);
+        loadPdf();
+        loadRecommendations();
+        refreshHistory();
+        toast('Conversation restauree', 'success');
+    } catch (err) { toast('Erreur: ' + err.message, 'error'); }
+    finally { hideLoading(); }
+}
+
+// ============================================
+// RECOMMENDATIONS
+// ============================================
+async function loadRecommendations() {
+    if (!mlFeatures.recommendations) return;
+    try {
+        const data = await api('/api/recommendations');
+        const section = document.getElementById('recsSection');
+        const list = document.getElementById('recsList');
+
+        if (data.recommendations && data.recommendations.length > 0) {
+            section.style.display = '';
+            list.innerHTML = data.recommendations.map(r => {
+                const canLoad = r.has_pdf && r.search_index !== null;
+                const clickAttr = canLoad
+                    ? `onclick="loadDocument(${r.search_index})" style="cursor:pointer;"`
+                    : '';
+                const hintHtml = canLoad
+                    ? '<div class="rec-hint">Cliquer pour analyser</div>'
+                    : '<div class="rec-hint" style="color:var(--text-dim);">PDF indisponible</div>';
+                return `
+                    <div class="rec-item ${canLoad ? 'rec-clickable' : ''}" ${clickAttr}>
+                        <div class="rec-title">${r.title.substring(0, 80)}${r.title.length > 80 ? '...' : ''}</div>
+                        <div class="rec-score">Similarite: ${Math.round(r.similarity * 100)}%</div>
+                        ${hintHtml}
+                    </div>
+                `;
+            }).join('');
+        } else {
+            section.style.display = 'none';
+        }
+    } catch (err) { console.error('Recommendations error:', err); }
+}
+
+// ============================================
+// RESET
+// ============================================
+async function resetApp() {
+    await api('/api/reset', 'POST');
+    currentPhase = 'search';
+    document.getElementById('searchPhase').style.display = '';
+    document.getElementById('chatPhase').classList.remove('active');
+    document.getElementById('btnReset').style.display = 'none';
+    document.getElementById('statusDot').className = 'status-dot inactive';
+    document.getElementById('statusText').textContent = 'Pret a rechercher';
+    document.getElementById('recsSection').style.display = 'none';
+    document.getElementById('pdfBadges').innerHTML = '';
+    refreshHistory();
+    document.getElementById('searchInput').focus();
+}
+
+// ============================================
+// LOADING & TOAST
+// ============================================
+function showLoading(text) {
+    document.getElementById('loadingText').innerHTML = `<span class="step">${text}</span><br>Cela peut prendre quelques secondes`;
+    document.getElementById('loadingOverlay').classList.add('active');
+}
+function hideLoading() { document.getElementById('loadingOverlay').classList.remove('active'); }
+function toast(msg, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    const div = document.createElement('div');
+    div.className = `toast ${type}`; div.textContent = msg;
+    container.appendChild(div);
+    setTimeout(() => div.remove(), 4000);
+}
+
+// ============================================
+// INIT
+// ============================================
+document.getElementById('searchInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') doSearch();
+});
+
+(async () => {
+    try {
+        const status = await api('/api/status');
+        mlFeatures = status.ml_features || {};
+        if (status.rag_loaded) {
+            switchToChat({ title: status.current_doc, author: '' });
+            loadPdf();
+            loadRecommendations();
+        }
+        refreshHistory();
+    } catch(e) { console.error('Init error:', e); }
+})();
+</script>
+
+</body>
+</html>
