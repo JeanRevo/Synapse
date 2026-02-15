@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synapse — Assistant Scientifique IA</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #8b5cf6;
+            --primary-light: #a78bfa;
+            --primary-dark: #7c3aed;
+            --accent: #06b6d4;
+            --accent-light: #22d3ee;
+            --bg-dark: #0a0a0f;
+            --bg-card: rgba(255, 255, 255, 0.03);
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+            --glow-purple: rgba(139, 92, 246, 0.4);
+            --glow-cyan: rgba(6, 182, 212, 0.3);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* Neural Canvas Background */
+        #neural-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.6;
+        }
+
+        /* Overlay gradient */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            background:
+                radial-gradient(ellipse at 20% 50%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(6, 182, 212, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        /* Content */
+        .content {
+            position: relative;
+            z-index: 2;
+        }
+
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            padding: 1.2rem 3rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            backdrop-filter: blur(20px);
+            background: rgba(10, 10, 15, 0.7);
+            border-bottom: 1px solid rgba(139, 92, 246, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        nav.scrolled {
+            padding: 0.8rem 3rem;
+            background: rgba(10, 10, 15, 0.9);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+        }
+
+        .logo-icon {
+            width: 38px;
+            height: 38px;
+            position: relative;
+        }
+
+        .logo-icon svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .logo-text {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-light), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.3s;
+            position: relative;
+        }
+
+        .nav-links a:hover {
+            color: var(--text);
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            transition: width 0.3s;
+        }
+
+        .nav-links a:hover::after {
+            width: 100%;
+        }
+
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 2rem;
+            position: relative;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1.2rem;
+            border-radius: 50px;
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            font-size: 0.85rem;
+            color: var(--primary-light);
+            margin-bottom: 2rem;
+            animation: fadeInDown 0.8s ease;
+        }
+
+        .hero-badge .pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+            animation: pulse 2s infinite;
+        }
+
+        .hero h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(3rem, 7vw, 5.5rem);
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            animation: fadeInUp 0.8s ease 0.2s both;
+        }
+
+        .hero h1 .gradient-text {
+            background: linear-gradient(135deg, var(--primary-light) 0%, var(--accent) 50%, var(--primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            background-size: 200% auto;
+            animation: gradientShift 4s ease infinite;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            max-width: 600px;
+            line-height: 1.7;
+            margin-bottom: 2.5rem;
+            animation: fadeInUp 0.8s ease 0.4s both;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 1rem;
+            animation: fadeInUp 0.8s ease 0.6s both;
+        }
+
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.9rem 2rem;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px var(--glow-purple);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px var(--glow-purple);
+        }
+
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.9rem 2rem;
+            border-radius: 12px;
+            background: var(--bg-card);
+            color: var(--text);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(139, 92, 246, 0.3);
+            transform: translateY(-2px);
+        }
+
+        /* Scroll indicator */
+        .scroll-indicator {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            animation: fadeInUp 0.8s ease 1s both;
+        }
+
+        .scroll-indicator .mouse {
+            width: 26px;
+            height: 40px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 13px;
+            display: flex;
+            justify-content: center;
+            padding-top: 8px;
+        }
+
+        .scroll-indicator .wheel {
+            width: 3px;
+            height: 8px;
+            border-radius: 2px;
+            background: var(--primary-light);
+            animation: scrollWheel 2s infinite;
+        }
+
+        /* Features Section */
+        .section {
+            padding: 6rem 3rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 1rem;
+        }
+
+        .section h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2.8rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .section .subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            max-width: 600px;
+            margin-bottom: 3.5rem;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .feature-card {
+            padding: 2rem;
+            border-radius: 16px;
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary), transparent);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+
+        .feature-card:hover {
+            border-color: rgba(139, 92, 246, 0.2);
+            transform: translateY(-4px);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .feature-card:hover::before {
+            opacity: 1;
+        }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            margin-bottom: 1.2rem;
+        }
+
+        .feature-icon.purple {
+            background: rgba(139, 92, 246, 0.15);
+            color: var(--primary-light);
+        }
+
+        .feature-icon.cyan {
+            background: rgba(6, 182, 212, 0.15);
+            color: var(--accent-light);
+        }
+
+        .feature-icon.mixed {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(6, 182, 212, 0.15));
+            color: var(--primary-light);
+        }
+
+        .feature-card h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 0.6rem;
+        }
+
+        .feature-card p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        /* Pipeline Section */
+        .pipeline {
+            padding: 6rem 3rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .pipeline-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            position: relative;
+        }
+
+        .pipeline-line {
+            position: absolute;
+            left: 24px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(180deg, var(--primary), var(--accent), var(--primary));
+            opacity: 0.3;
+        }
+
+        .pipeline-step {
+            display: flex;
+            gap: 2rem;
+            align-items: flex-start;
+            padding: 1.5rem 0;
+            position: relative;
+        }
+
+        .step-number {
+            width: 50px;
+            height: 50px;
+            min-width: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            font-size: 1.1rem;
+            background: rgba(139, 92, 246, 0.15);
+            border: 2px solid rgba(139, 92, 246, 0.3);
+            color: var(--primary-light);
+            z-index: 1;
+            transition: all 0.3s;
+        }
+
+        .pipeline-step:hover .step-number {
+            background: rgba(139, 92, 246, 0.3);
+            border-color: var(--primary);
+            box-shadow: 0 0 20px var(--glow-purple);
+        }
+
+        .step-content h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin-bottom: 0.4rem;
+        }
+
+        .step-content p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .step-tag {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-top: 0.5rem;
+            background: rgba(6, 182, 212, 0.1);
+            color: var(--accent-light);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+        }
+
+        /* Tech Stack */
+        .tech-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-top: 3rem;
+            justify-content: center;
+        }
+
+        .tech-pill {
+            padding: 0.5rem 1.2rem;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-muted);
+            transition: all 0.3s;
+        }
+
+        .tech-pill:hover {
+            border-color: rgba(139, 92, 246, 0.3);
+            color: var(--text);
+            background: rgba(139, 92, 246, 0.08);
+        }
+
+        /* CTA Section */
+        .cta {
+            text-align: center;
+            padding: 8rem 2rem;
+            position: relative;
+        }
+
+        .cta::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.08), transparent 70%);
+            pointer-events: none;
+        }
+
+        .cta h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2.8rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .cta p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            margin-bottom: 2.5rem;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* Footer */
+        footer {
+            padding: 2rem 3rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        footer a {
+            color: var(--primary-light);
+            text-decoration: none;
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% center; }
+            50% { background-position: 200% center; }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.5); }
+        }
+
+        @keyframes scrollWheel {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(8px); }
+        }
+
+        /* Scroll reveal */
+        .reveal {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            nav { padding: 1rem 1.5rem; }
+            .nav-links { display: none; }
+            .section, .pipeline { padding: 4rem 1.5rem; }
+            .features-grid { grid-template-columns: 1fr; }
+            .hero-buttons { flex-direction: column; align-items: center; }
+            footer { flex-direction: column; gap: 1rem; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="neural-canvas"></canvas>
+<div class="overlay"></div>
+
+<div class="content">
+    <!-- Navigation -->
+    <nav id="navbar">
+        <a href="#" class="logo">
+            <div class="logo-icon">
+                <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="20" cy="20" r="4" fill="#8b5cf6"/>
+                    <circle cx="20" cy="20" r="8" stroke="#8b5cf6" stroke-width="1" opacity="0.5"/>
+                    <circle cx="20" cy="20" r="14" stroke="#06b6d4" stroke-width="0.5" opacity="0.3"/>
+                    <circle cx="8" cy="12" r="2.5" fill="#06b6d4" opacity="0.8"/>
+                    <circle cx="32" cy="14" r="2" fill="#8b5cf6" opacity="0.6"/>
+                    <circle cx="12" cy="32" r="2" fill="#a78bfa" opacity="0.7"/>
+                    <circle cx="30" cy="30" r="2.5" fill="#06b6d4" opacity="0.6"/>
+                    <line x1="20" y1="20" x2="8" y2="12" stroke="#8b5cf6" stroke-width="0.8" opacity="0.4"/>
+                    <line x1="20" y1="20" x2="32" y2="14" stroke="#06b6d4" stroke-width="0.8" opacity="0.4"/>
+                    <line x1="20" y1="20" x2="12" y2="32" stroke="#8b5cf6" stroke-width="0.8" opacity="0.3"/>
+                    <line x1="20" y1="20" x2="30" y2="30" stroke="#06b6d4" stroke-width="0.8" opacity="0.3"/>
+                </svg>
+            </div>
+            <span class="logo-text">Synapse</span>
+        </a>
+        <ul class="nav-links">
+            <li><a href="#features">Fonctionnalites</a></li>
+            <li><a href="#pipeline">Pipeline</a></li>
+            <li><a href="#tech">Technologies</a></li>
+            <li><a href="#launch" class="btn-primary" style="padding: 0.5rem 1.2rem; font-size: 0.85rem;">Lancer l'app</a></li>
+        </ul>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="hero-badge">
+            <div class="pulse-dot"></div>
+            Propulse par l'IA
+        </div>
+        <h1>
+            Explorez la science<br>
+            avec <span class="gradient-text">Synapse</span>
+        </h1>
+        <p>
+            Assistant IA qui analyse les theses scientifiques en temps reel.
+            Recherche vectorielle hybride, comprehension contextuelle et reponses sourcees.
+        </p>
+        <div class="hero-buttons">
+            <a href="#launch" class="btn-primary">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                Demarrer Synapse
+            </a>
+            <a href="#features" class="btn-secondary">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                Decouvrir
+            </a>
+        </div>
+        <div class="scroll-indicator">
+            <div class="mouse">
+                <div class="wheel"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section class="section" id="features">
+        <div class="reveal">
+            <div class="section-label">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                Fonctionnalites
+            </div>
+            <h2>Intelligence au service<br>de la recherche</h2>
+            <p class="subtitle">Un pipeline RAG complet qui transforme des theses brutes en connaissances exploitables.</p>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card reveal">
+                <div class="feature-icon purple">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                </div>
+                <h3>Recherche Hybride</h3>
+                <p>Combine FAISS (similarite vectorielle) et BM25 (correspondance lexicale) pour des resultats precis et pertinents a chaque requete.</p>
+            </div>
+            <div class="feature-card reveal">
+                <div class="feature-icon cyan">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                </div>
+                <h3>Analyse Multi-Index</h3>
+                <p>4 index specialises (chapitre, section, paragraphe, complet) avec routage intelligent selon le type de question posee.</p>
+            </div>
+            <div class="feature-card reveal">
+                <div class="feature-icon mixed">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                </div>
+                <h3>Dialogue Contextuel</h3>
+                <p>Memoire conversationnelle qui maintient le contexte entre les questions pour des echanges naturels et fluides.</p>
+            </div>
+            <div class="feature-card reveal">
+                <div class="feature-icon purple">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+                </div>
+                <h3>Sources Verifiables</h3>
+                <p>Chaque reponse est accompagnee des passages sources avec numeros de pages pour une verification immediate.</p>
+            </div>
+            <div class="feature-card reveal">
+                <div class="feature-icon cyan">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+                </div>
+                <h3>Parsing Hierarchique</h3>
+                <p>Detection automatique de la structure (chapitres, sections, paragraphes) pour un decoupage intelligent des theses.</p>
+            </div>
+            <div class="feature-card reveal">
+                <div class="feature-icon mixed">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                </div>
+                <h3>HAL Science Live</h3>
+                <p>Connexion directe a l'API HAL pour rechercher et analyser n'importe quelle these du portail en temps reel.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pipeline -->
+    <section class="pipeline" id="pipeline">
+        <div class="reveal">
+            <div class="section-label">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                Pipeline RAG
+            </div>
+            <h2>Du PDF a la reponse</h2>
+            <p class="subtitle">Un pipeline en 6 etapes qui transforme un document brut en intelligence exploitable.</p>
+        </div>
+        <div class="pipeline-steps">
+            <div class="pipeline-line"></div>
+            <div class="pipeline-step reveal">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <h3>Recherche HAL</h3>
+                    <p>Interrogation de l'API HAL Science pour trouver les theses correspondant a la requete utilisateur.</p>
+                    <span class="step-tag">API REST</span>
+                </div>
+            </div>
+            <div class="pipeline-step reveal">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <h3>Extraction PDF</h3>
+                    <p>Telechargement et extraction du texte page par page avec PyMuPDF (fitz) pour une fidelite maximale.</p>
+                    <span class="step-tag">PyMuPDF</span>
+                </div>
+            </div>
+            <div class="pipeline-step reveal">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <h3>Parsing Structurel</h3>
+                    <p>Analyse de la table des matieres et detection hierarchique des chapitres, sections et paragraphes.</p>
+                    <span class="step-tag">ThesisParser</span>
+                </div>
+            </div>
+            <div class="pipeline-step reveal">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                    <h3>Chunking Hierarchique</h3>
+                    <p>Decoupage intelligent en chunks de 1500/1000/500 caracteres selon le niveau structurel detecte.</p>
+                    <span class="step-tag">RecursiveCharacterTextSplitter</span>
+                </div>
+            </div>
+            <div class="pipeline-step reveal">
+                <div class="step-number">5</div>
+                <div class="step-content">
+                    <h3>Vectorisation</h3>
+                    <p>Transformation des chunks en vecteurs via OpenAI Embeddings et indexation dans 4 index FAISS specialises.</p>
+                    <span class="step-tag">FAISS + Embeddings</span>
+                </div>
+            </div>
+            <div class="pipeline-step reveal">
+                <div class="step-number">6</div>
+                <div class="step-content">
+                    <h3>Reponse Augmentee</h3>
+                    <p>Recherche hybride FAISS+BM25, expansion de contexte, et generation de reponse avec sources via LLM.</p>
+                    <span class="step-tag">LangChain RAG</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Tech Stack -->
+    <section class="section" id="tech" style="text-align: center;">
+        <div class="reveal">
+            <div class="section-label" style="justify-content: center;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                Stack Technique
+            </div>
+            <h2>Construit avec les meilleurs outils</h2>
+        </div>
+        <div class="tech-stack reveal">
+            <span class="tech-pill">Python</span>
+            <span class="tech-pill">LangChain</span>
+            <span class="tech-pill">FAISS</span>
+            <span class="tech-pill">OpenAI</span>
+            <span class="tech-pill">Streamlit</span>
+            <span class="tech-pill">BM25</span>
+            <span class="tech-pill">PyMuPDF</span>
+            <span class="tech-pill">HAL Science API</span>
+            <span class="tech-pill">PromptTemplate</span>
+            <span class="tech-pill">EnsembleRetriever</span>
+            <span class="tech-pill">MMR</span>
+            <span class="tech-pill">ConversationalRetrievalChain</span>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta" id="launch">
+        <div class="reveal">
+            <h2>Pret a explorer ?</h2>
+            <p>Lancez Synapse et commencez a dialoguer avec la science.</p>
+            <a href="http://localhost:8501" class="btn-primary" style="font-size: 1.1rem; padding: 1rem 2.5rem;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                Lancer Synapse
+            </a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <span>Synapse &copy; 2025 &mdash; Assistant Scientifique IA</span>
+        <span>Propulse par <a href="https://www.langchain.com/" target="_blank">LangChain</a> & <a href="https://api.archives-ouvertes.fr/" target="_blank">HAL Science</a></span>
+    </footer>
+</div>
+
+<script>
+// ============================================
+// NEURAL NETWORK ANIMATION
+// ============================================
+const canvas = document.getElementById('neural-canvas');
+const ctx = canvas.getContext('2d');
+
+let width, height;
+let neurons = [];
+let synapses = [];
+let impulses = [];
+let mouseX = -1000, mouseY = -1000;
+
+const CONFIG = {
+    neuronCount: 80,
+    connectionDistance: 180,
+    neuronMinRadius: 2,
+    neuronMaxRadius: 5,
+    impulseSpeed: 2.5,
+    impulseFrequency: 0.015,
+    baseDrift: 0.3,
+    mouseInfluenceRadius: 200,
+    mouseRepelForce: 0.8,
+    colors: {
+        neuronCore: '#8b5cf6',
+        neuronGlow: 'rgba(139, 92, 246, 0.3)',
+        synapse: 'rgba(139, 92, 246, 0.08)',
+        synapseActive: 'rgba(139, 92, 246, 0.25)',
+        impulsePurple: '#a78bfa',
+        impulseCyan: '#22d3ee',
+        impulseGlow: 'rgba(6, 182, 212, 0.6)',
+    }
+};
+
+function resize() {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+}
+
+class Neuron {
+    constructor() {
+        this.x = Math.random() * width;
+        this.y = Math.random() * height;
+        this.radius = CONFIG.neuronMinRadius + Math.random() * (CONFIG.neuronMaxRadius - CONFIG.neuronMinRadius);
+        this.vx = (Math.random() - 0.5) * CONFIG.baseDrift;
+        this.vy = (Math.random() - 0.5) * CONFIG.baseDrift;
+        this.baseAlpha = 0.4 + Math.random() * 0.4;
+        this.alpha = this.baseAlpha;
+        this.pulsePhase = Math.random() * Math.PI * 2;
+        this.firing = false;
+        this.fireIntensity = 0;
+    }
+
+    update() {
+        // Pulse glow
+        this.pulsePhase += 0.02;
+        this.alpha = this.baseAlpha + Math.sin(this.pulsePhase) * 0.15;
+
+        // Mouse interaction
+        const dx = this.x - mouseX;
+        const dy = this.y - mouseY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < CONFIG.mouseInfluenceRadius) {
+            const force = (1 - dist / CONFIG.mouseInfluenceRadius) * CONFIG.mouseRepelForce;
+            this.vx += (dx / dist) * force;
+            this.vy += (dy / dist) * force;
+            this.fireIntensity = Math.min(1, this.fireIntensity + 0.1);
+        }
+
+        // Fire decay
+        if (this.fireIntensity > 0) {
+            this.fireIntensity *= 0.96;
+            if (this.fireIntensity < 0.01) this.fireIntensity = 0;
+        }
+
+        // Drift with damping
+        this.x += this.vx;
+        this.y += this.vy;
+        this.vx *= 0.99;
+        this.vy *= 0.99;
+
+        // Add subtle drift
+        this.vx += (Math.random() - 0.5) * 0.02;
+        this.vy += (Math.random() - 0.5) * 0.02;
+
+        // Boundary wrap
+        if (this.x < -50) this.x = width + 50;
+        if (this.x > width + 50) this.x = -50;
+        if (this.y < -50) this.y = height + 50;
+        if (this.y > height + 50) this.y = -50;
+    }
+
+    draw() {
+        const glowRadius = this.radius * (3 + this.fireIntensity * 4);
+
+        // Outer glow
+        const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, glowRadius);
+        if (this.fireIntensity > 0.1) {
+            gradient.addColorStop(0, `rgba(6, 182, 212, ${0.4 * this.fireIntensity})`);
+            gradient.addColorStop(0.5, `rgba(139, 92, 246, ${0.2 * this.fireIntensity})`);
+        } else {
+            gradient.addColorStop(0, `rgba(139, 92, 246, ${0.2 * this.alpha})`);
+            gradient.addColorStop(0.5, `rgba(139, 92, 246, ${0.05 * this.alpha})`);
+        }
+        gradient.addColorStop(1, 'transparent');
+
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, glowRadius, 0, Math.PI * 2);
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        // Core
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius + this.fireIntensity * 2, 0, Math.PI * 2);
+        ctx.fillStyle = this.fireIntensity > 0.1
+            ? `rgba(167, 139, 250, ${this.alpha + this.fireIntensity * 0.3})`
+            : `rgba(139, 92, 246, ${this.alpha})`;
+        ctx.fill();
+    }
+}
+
+class Impulse {
+    constructor(from, to) {
+        this.from = from;
+        this.to = to;
+        this.progress = 0;
+        this.speed = CONFIG.impulseSpeed / Math.sqrt(
+            (to.x - from.x) ** 2 + (to.y - from.y) ** 2
+        );
+        this.alive = true;
+        this.isCyan = Math.random() > 0.5;
+    }
+
+    update() {
+        this.progress += this.speed;
+        if (this.progress >= 1) {
+            this.alive = false;
+            this.to.fireIntensity = Math.min(1, this.to.fireIntensity + 0.5);
+        }
+    }
+
+    draw() {
+        const x = this.from.x + (this.to.x - this.from.x) * this.progress;
+        const y = this.from.y + (this.to.y - this.from.y) * this.progress;
+        const alpha = Math.sin(this.progress * Math.PI);
+
+        // Trail
+        const trailLen = 0.08;
+        const tx = this.from.x + (this.to.x - this.from.x) * Math.max(0, this.progress - trailLen);
+        const ty = this.from.y + (this.to.y - this.from.y) * Math.max(0, this.progress - trailLen);
+
+        const trailGrad = ctx.createLinearGradient(tx, ty, x, y);
+        if (this.isCyan) {
+            trailGrad.addColorStop(0, 'transparent');
+            trailGrad.addColorStop(1, `rgba(34, 211, 238, ${0.6 * alpha})`);
+        } else {
+            trailGrad.addColorStop(0, 'transparent');
+            trailGrad.addColorStop(1, `rgba(167, 139, 250, ${0.6 * alpha})`);
+        }
+
+        ctx.beginPath();
+        ctx.moveTo(tx, ty);
+        ctx.lineTo(x, y);
+        ctx.strokeStyle = trailGrad;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Impulse glow
+        const glowGrad = ctx.createRadialGradient(x, y, 0, x, y, 12);
+        if (this.isCyan) {
+            glowGrad.addColorStop(0, `rgba(34, 211, 238, ${0.8 * alpha})`);
+            glowGrad.addColorStop(0.5, `rgba(6, 182, 212, ${0.3 * alpha})`);
+        } else {
+            glowGrad.addColorStop(0, `rgba(167, 139, 250, ${0.8 * alpha})`);
+            glowGrad.addColorStop(0.5, `rgba(139, 92, 246, ${0.3 * alpha})`);
+        }
+        glowGrad.addColorStop(1, 'transparent');
+
+        ctx.beginPath();
+        ctx.arc(x, y, 12, 0, Math.PI * 2);
+        ctx.fillStyle = glowGrad;
+        ctx.fill();
+
+        // Bright core
+        ctx.beginPath();
+        ctx.arc(x, y, 2, 0, Math.PI * 2);
+        ctx.fillStyle = this.isCyan
+            ? `rgba(255, 255, 255, ${0.9 * alpha})`
+            : `rgba(255, 255, 255, ${0.7 * alpha})`;
+        ctx.fill();
+    }
+}
+
+function init() {
+    resize();
+    neurons = [];
+    for (let i = 0; i < CONFIG.neuronCount; i++) {
+        neurons.push(new Neuron());
+    }
+}
+
+function getConnections() {
+    const connections = [];
+    for (let i = 0; i < neurons.length; i++) {
+        for (let j = i + 1; j < neurons.length; j++) {
+            const dx = neurons[i].x - neurons[j].x;
+            const dy = neurons[i].y - neurons[j].y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < CONFIG.connectionDistance) {
+                connections.push({ a: neurons[i], b: neurons[j], dist });
+            }
+        }
+    }
+    return connections;
+}
+
+function animate() {
+    ctx.clearRect(0, 0, width, height);
+
+    // Update neurons
+    neurons.forEach(n => n.update());
+
+    // Draw connections (synapses)
+    const connections = getConnections();
+    connections.forEach(({ a, b, dist }) => {
+        const alpha = (1 - dist / CONFIG.connectionDistance);
+        const isActive = a.fireIntensity > 0.1 || b.fireIntensity > 0.1;
+
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.strokeStyle = isActive
+            ? `rgba(139, 92, 246, ${alpha * 0.25 + Math.max(a.fireIntensity, b.fireIntensity) * 0.15})`
+            : `rgba(139, 92, 246, ${alpha * 0.08})`;
+        ctx.lineWidth = isActive ? 1 : 0.5;
+        ctx.stroke();
+    });
+
+    // Spawn random impulses
+    if (connections.length > 0 && Math.random() < CONFIG.impulseFrequency) {
+        const conn = connections[Math.floor(Math.random() * connections.length)];
+        if (Math.random() > 0.5) {
+            impulses.push(new Impulse(conn.a, conn.b));
+        } else {
+            impulses.push(new Impulse(conn.b, conn.a));
+        }
+    }
+
+    // Update & draw impulses
+    impulses = impulses.filter(imp => imp.alive);
+    impulses.forEach(imp => {
+        imp.update();
+        imp.draw();
+    });
+
+    // Draw neurons
+    neurons.forEach(n => n.draw());
+
+    requestAnimationFrame(animate);
+}
+
+// Mouse tracking
+document.addEventListener('mousemove', (e) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+});
+
+document.addEventListener('mouseleave', () => {
+    mouseX = -1000;
+    mouseY = -1000;
+});
+
+window.addEventListener('resize', resize);
+
+// Scroll reveal
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+        }
+    });
+}, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+// Navbar scroll effect
+window.addEventListener('scroll', () => {
+    document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 50);
+});
+
+// Smooth scroll
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function(e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+});
+
+// Init
+init();
+animate();
+</script>
+
+</body>
+</html>

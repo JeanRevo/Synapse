@@ -89,7 +89,7 @@ st.markdown(
 def init_session_state():
     """Initialiser les variables d'état de session Streamlit."""
     if "app_state" not in st.session_state:
-        st.session_state.app_state = "search"
+        st.session_state.app_state = "landing"
     if "search_results" not in st.session_state:
         st.session_state.search_results = None
     if "selected_doc" not in st.session_state:
@@ -779,9 +779,29 @@ def reset_application():
     st.session_state.last_answer = None
 
 
+def render_landing_page():
+    """Affiche la landing page Synapse avec animations neuronales."""
+    landing_path = Path(__file__).parent / "landing.html"
+    if landing_path.exists():
+        landing_html = landing_path.read_text(encoding="utf-8")
+        # Remplacer le lien "Lancer Synapse" par un placeholder
+        # car on utilise un bouton Streamlit à la place
+        st.components.v1.html(landing_html, height=900, scrolling=True)
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if st.button("🧠 Entrer dans Synapse", use_container_width=True, type="primary"):
+            st.session_state.app_state = "search"
+            st.rerun()
+
+
 def main():
     """Point d'entrée principal de l'application."""
     init_session_state()
+
+    if st.session_state.app_state == "landing":
+        render_landing_page()
+        return
 
     translations = get_translations()
     translations.set_language(st.session_state.language)
