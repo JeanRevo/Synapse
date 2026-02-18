@@ -491,7 +491,7 @@
     <!-- =========== SEARCH PHASE =========== -->
     <div class="search-phase" id="searchPhase">
         <div class="search-hero">
-            <h1>Rechercher une these</h1>
+            <h1>Rechercher une thèse</h1>
             <p>Explorez les archives HAL Science et analysez n'importe quelle these avec l'IA</p>
         </div>
 
@@ -499,6 +499,12 @@
             <input type="text" class="search-input" id="searchInput"
                    placeholder="Ex: intelligence artificielle, deep learning, neurosciences..."
                    autofocus>
+            <select id="numResultsSelect" style="padding:0.6rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:0.9rem;cursor:pointer;">
+                <option value="10">10 résultats</option>
+                <option value="25">25 résultats</option>
+                <option value="50">50 résultats</option>
+                <option value="100">100 résultats</option>
+            </select>
             <button class="btn btn-primary" id="searchBtn" onclick="doSearch()">Rechercher</button>
         </div>
 
@@ -596,9 +602,10 @@ async function doSearch() {
     const query = document.getElementById('searchInput').value.trim();
     if (!query) return;
     const btn = document.getElementById('searchBtn');
+    const num_results = parseInt(document.getElementById('numResultsSelect').value);
     btn.disabled = true; btn.textContent = 'Recherche...';
     try {
-        const data = await api('/api/search', 'POST', { query, num_results: 10 });
+        const data = await api('/api/search', 'POST', { query, num_results });
         searchResults = data.docs;
         activeFilters = { domains: new Set(), methods: new Set() };
         document.getElementById('resultsContainer').style.display = 'block';
