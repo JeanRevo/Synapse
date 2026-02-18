@@ -90,6 +90,7 @@ last_answer: Optional[str] = None  # Dernière réponse pour le surlignage
 class SearchRequest(BaseModel):
     query: str
     num_results: int = 10
+    start: int = 0
 
 
 class AskRequest(BaseModel):
@@ -135,7 +136,7 @@ async def search_theses(req: SearchRequest):
 
     try:
         cleaned = clean_query(req.query)
-        results = hal_client.search_theses(query=cleaned, rows=req.num_results)
+        results = hal_client.search_theses(query=cleaned, rows=req.num_results, start=req.start)
 
         docs = []
         for doc in results.get("docs", []):
@@ -174,11 +175,16 @@ async def search_theses(req: SearchRequest):
 
             docs.append(doc_dict)
 
-        search_results_cache = docs
+        # Nouvelle recherche : remplacer le cache. Pagination : ajouter au cache.
+        if req.start == 0:
+            search_results_cache = docs
+        else:
+            search_results_cache.extend(docs)
 
         return {
             "success": True,
             "num_found": results["numFound"],
+            "start": req.start,
             "docs": docs,
         }
 

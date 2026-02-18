@@ -483,7 +483,7 @@
 
         <!-- Recommendations -->
         <div class="sidebar-section" id="recsSection" style="display:none;">
-            <div class="sidebar-section-title">Theses similaires</div>
+            <div class="sidebar-section-title">Thèses similaires</div>
             <div id="recsList"></div>
         </div>
     </div>
@@ -500,10 +500,9 @@
                    placeholder="Ex: intelligence artificielle, deep learning, neurosciences..."
                    autofocus>
             <select id="numResultsSelect" style="padding:0.6rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:0.9rem;cursor:pointer;">
-                <option value="10">10 résultats</option>
-                <option value="25">25 résultats</option>
-                <option value="50">50 résultats</option>
-                <option value="100">100 résultats</option>
+                <option value="10">10 / page</option>
+                <option value="25">25 / page</option>
+                <option value="50">50 / page</option>
             </select>
             <button class="btn btn-primary" id="searchBtn" onclick="doSearch()">Rechercher</button>
         </div>
@@ -517,6 +516,10 @@
                 <button class="filters-clear" id="filtersClear" onclick="clearFilters()" style="display:none;">Reinitialiser</button>
             </div>
             <div id="resultsList"></div>
+            <div id="loadMoreContainer" style="display:none; text-align:center; padding:1.5rem 0;">
+                <button class="btn btn-secondary" id="loadMoreBtn" onclick="loadMore()">Charger plus de résultats</button>
+                <p id="loadMoreInfo" style="margin-top:0.5rem; color:var(--text-dim); font-size:0.85rem;"></p>
+            </div>
         </div>
     </div>
 
@@ -596,8 +599,12 @@ async function api(endpoint, method = 'GET', body = null) {
 }
 
 // ============================================
-// SEARCH
+// SEARCH + PAGINATION
 // ============================================
+let currentSearchQuery = '';
+let currentSearchStart = 0;
+let totalNumFound = 0;
+
 async function doSearch() {
     const query = document.getElementById('searchInput').value.trim();
     if (!query) return;
@@ -605,65 +612,102 @@ async function doSearch() {
     const num_results = parseInt(document.getElementById('numResultsSelect').value);
     btn.disabled = true; btn.textContent = 'Recherche...';
     try {
-        const data = await api('/api/search', 'POST', { query, num_results });
+        const data = await api('/api/search', 'POST', { query, num_results, start: 0 });
+        currentSearchQuery = query;
+        currentSearchStart = data.docs.length;
+        totalNumFound = data.num_found;
         searchResults = data.docs;
         activeFilters = { domains: new Set(), methods: new Set() };
         document.getElementById('resultsContainer').style.display = 'block';
         document.getElementById('resultsCount').textContent =
-            `${data.num_found} resultats trouves — ${data.docs.length} affiches`;
+            `${data.num_found.toLocaleString()} résultats trouvés — ${data.docs.length} affichés`;
         buildFilterBar(data.docs);
         renderResults(data.docs);
+        updateLoadMore(data.num_found, data.docs.length);
     } catch (err) { toast('Erreur: ' + err.message, 'error'); }
     finally { btn.disabled = false; btn.textContent = 'Rechercher'; }
+}
+
+async function loadMore() {
+    const btn = document.getElementById('loadMoreBtn');
+    const num_results = parseInt(document.getElementById('numResultsSelect').value);
+    btn.disabled = true; btn.textContent = 'Chargement...';
+    try {
+        const data = await api('/api/search', 'POST', {
+            query: currentSearchQuery,
+            num_results,
+            start: currentSearchStart
+        });
+        searchResults = searchResults.concat(data.docs);
+        currentSearchStart += data.docs.length;
+        document.getElementById('resultsCount').textContent =
+            `${totalNumFound.toLocaleString()} résultats trouvés — ${searchResults.length} affichés`;
+        appendResults(data.docs);
+        updateLoadMore(totalNumFound, searchResults.length);
+    } catch (err) { toast('Erreur: ' + err.message, 'error'); }
+    finally { btn.disabled = false; btn.textContent = 'Charger plus de résultats'; }
+}
+
+function updateLoadMore(numFound, displayed) {
+    const container = document.getElementById('loadMoreContainer');
+    const info = document.getElementById('loadMoreInfo');
+    const remaining = numFound - displayed;
+    if (remaining > 0) {
+        container.style.display = 'block';
+        info.textContent = `${remaining.toLocaleString()} résultats restants sur ${numFound.toLocaleString()} au total`;
+    } else {
+        container.style.display = 'none';
+    }
+}
+
+function buildDocCard(doc) {
+    const origIdx = searchResults.indexOf(doc);
+    let badgesHtml = '';
+    if (doc.classification) {
+        (doc.classification.domains || []).slice(0, 2).forEach(d => {
+            badgesHtml += `<span class="badge-domain">${d}</span>`;
+        });
+        (doc.classification.methodologies || []).slice(0, 2).forEach(m => {
+            badgesHtml += `<span class="badge-method">${m}</span>`;
+        });
+    }
+    const keywords = doc.keywords.map(k => `<span class="keyword-pill">${k}</span>`).join('');
+    const pdfBtn = doc.has_pdf
+        ? `<button class="btn btn-success btn-sm" onclick="loadDocument(${origIdx})">Analyser avec Synapse</button>`
+        : `<span style="color: var(--text-dim); font-size: 0.8rem;">PDF indisponible</span>`;
+    const summaryBtn = mlFeatures.summarization
+        ? `<button class="btn btn-accent btn-sm" onclick="summarizeDoc(${origIdx})" id="sumBtn${origIdx}">Resume IA</button>`
+        : '';
+    return `
+        <div class="doc-card" id="docCard${origIdx}">
+            ${badgesHtml ? `<div class="doc-badges">${badgesHtml}</div>` : ''}
+            <div class="doc-title">${doc.title}</div>
+            <div class="doc-meta">
+                <span>${doc.author}</span>
+                <span>${doc.publication_date || 'Date inconnue'}</span>
+                ${doc.domain ? `<span>${doc.domain}</span>` : ''}
+            </div>
+            <div class="doc-abstract">${doc.abstract}</div>
+            ${keywords ? `<div class="doc-badges">${keywords}</div>` : ''}
+            <div id="summaryBox${origIdx}"></div>
+            <div class="doc-actions">
+                <a href="${doc.url}" target="_blank" class="btn btn-ghost btn-sm">Voir sur HAL</a>
+                ${summaryBtn}
+                ${pdfBtn}
+            </div>
+        </div>
+    `;
+}
+
+function appendResults(docs) {
+    const container = document.getElementById('resultsList');
+    docs.forEach(doc => { container.innerHTML += buildDocCard(doc); });
 }
 
 function renderResults(docs) {
     const container = document.getElementById('resultsList');
     container.innerHTML = '';
-    docs.forEach((doc) => {
-        // Retrouver l'index original dans searchResults pour les appels API
-        const origIdx = searchResults.indexOf(doc);
-
-        // ML badges
-        let badgesHtml = '';
-        if (doc.classification) {
-            (doc.classification.domains || []).slice(0, 2).forEach(d => {
-                badgesHtml += `<span class="badge-domain">${d}</span>`;
-            });
-            (doc.classification.methodologies || []).slice(0, 2).forEach(m => {
-                badgesHtml += `<span class="badge-method">${m}</span>`;
-            });
-        }
-
-        const keywords = doc.keywords.map(k => `<span class="keyword-pill">${k}</span>`).join('');
-        const pdfBtn = doc.has_pdf
-            ? `<button class="btn btn-success btn-sm" onclick="loadDocument(${origIdx})">Analyser avec Synapse</button>`
-            : `<span style="color: var(--text-dim); font-size: 0.8rem;">PDF indisponible</span>`;
-
-        const summaryBtn = mlFeatures.summarization
-            ? `<button class="btn btn-accent btn-sm" onclick="summarizeDoc(${origIdx})" id="sumBtn${origIdx}">Resume IA</button>`
-            : '';
-
-        container.innerHTML += `
-            <div class="doc-card" id="docCard${origIdx}">
-                ${badgesHtml ? `<div class="doc-badges">${badgesHtml}</div>` : ''}
-                <div class="doc-title">${doc.title}</div>
-                <div class="doc-meta">
-                    <span>${doc.author}</span>
-                    <span>${doc.publication_date || 'Date inconnue'}</span>
-                    ${doc.domain ? `<span>${doc.domain}</span>` : ''}
-                </div>
-                <div class="doc-abstract">${doc.abstract}</div>
-                ${keywords ? `<div class="doc-badges">${keywords}</div>` : ''}
-                <div id="summaryBox${origIdx}"></div>
-                <div class="doc-actions">
-                    <a href="${doc.url}" target="_blank" class="btn btn-ghost btn-sm">Voir sur HAL</a>
-                    ${summaryBtn}
-                    ${pdfBtn}
-                </div>
-            </div>
-        `;
-    });
+    docs.forEach(doc => { container.innerHTML += buildDocCard(doc); });
 }
 
 // ============================================
